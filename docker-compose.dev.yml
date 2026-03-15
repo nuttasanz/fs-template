@@ -10,8 +10,13 @@
 services:
   # ── Database ─────────────────────────────────────────────────────────────────
   db:
-    ports:
-      - "5432:5432"
+      image: postgres:16-alpine
+      environment:
+        POSTGRES_DB: ${POSTGRES_DB:-fs_template}
+        POSTGRES_USER: ${POSTGRES_USER:-postgres}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ports:
+        - "5432:5432"
 
   # ── API (NestJS — hot reload via nest start --watch) ─────────────────────────
   api:

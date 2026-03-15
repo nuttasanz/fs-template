@@ -1,4 +1,8 @@
+import path from 'path';
+import { config } from 'dotenv';
 import type { Config } from 'drizzle-kit';
+
+config({ path: path.resolve(__dirname, '../../.env') });
 
 export default {
   schema: './src/database/schema/index.ts',
