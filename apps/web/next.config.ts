@@ -11,9 +11,9 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Required for standalone output to correctly trace and bundle cross-workspace deps.
+  outputFileTracingRoot: path.join(__dirname, '../../'),
   experimental: {
-    // Required for standalone output to correctly trace and bundle cross-workspace deps.
-    outputFileTracingRoot: path.join(__dirname, '../../'),
     optimizePackageImports: ['@mantine/core', '@mantine/hooks'],
   },
 };
