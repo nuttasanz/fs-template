@@ -42,6 +42,12 @@ export class AuthService {
 
     if (!session) throw AppError.internal('Failed to create session. Please try again.');
 
+    // CSRF protection strategy:
+    // 1. SameSite=Lax — the browser will not attach 'sid' to cross-site
+    //    POST/PATCH/DELETE requests initiated by third-party pages.
+    // 2. CORS restriction — only origins in ALLOWED_ORIGINS may make
+    //    credentialed requests; attacker-controlled origins are rejected at preflight.
+    // Together these make a separate CSRF token unnecessary for this session design.
     res.cookie(COOKIE_NAME, rawToken, {
       httpOnly: true,
       secure: process.env['NODE_ENV'] === 'production',

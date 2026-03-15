@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBody, ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { LoginDTOSchema, type LoginDTO, type SessionDTO, type UserDTO } from '@repo/schemas';
@@ -25,6 +26,7 @@ import type { SessionUser } from '../common/types/session.types';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ global: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('Login successful.')

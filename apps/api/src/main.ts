@@ -8,16 +8,35 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { VersioningType } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { loggerMiddleware } from './common/middleware/logger.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule); // ConfigModule validates env here
+
+  // ── Security Headers ─────────────────────────────────────────────────────
+  app.use(helmet()); // must be first — sets X-Content-Type-Options, CSP, X-Frame-Options, etc.
 
   // ── Versioning ───────────────────────────────────────────────────────────
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+
+  // ── CORS ─────────────────────────────────────────────────────────────────
+  // Wildcard is rejected: credentials (HttpOnly cookies) require explicit origins.
+  const rawOrigins = process.env['ALLOWED_ORIGINS'] ?? '';
+  if (rawOrigins === '*') {
+    console.error('[Bootstrap] ALLOWED_ORIGINS cannot be "*" — incompatible with credentials (HttpOnly cookies).');
+    process.exit(1);
+  }
+  const origins = rawOrigins.split(',').map((o) => o.trim()).filter(Boolean);
+  app.enableCors({
+    origin: origins,
+    credentials: true,                                           // required for the HttpOnly sid cookie
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept'],
+  });
 
   // ── Global Middleware ────────────────────────────────────────────────────
   app.use(loggerMiddleware);   // Logs: METHOD /path STATUS — Xms
