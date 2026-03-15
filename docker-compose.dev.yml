@@ -1,0 +1,65 @@
+# Development overrides — use alongside the base compose file:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Key differences from production:
+#   - DB port exposed for local clients (TablePlus, psql, etc.)
+#   - API and Web built to the 'deps' stage only (no compiled output)
+#   - Source directories bind-mounted for hot reload
+#   - Commands run the dev watch servers instead of compiled output
+
+services:
+  # ── Database ─────────────────────────────────────────────────────────────────
+  db:
+    ports:
+      - "5432:5432"
+
+  # ── API (NestJS — hot reload via nest start --watch) ─────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: deps
+    command: >
+      sh -c "pnpm db:migrate && pnpm dev"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: 3001
+      NODE_ENV: development
+    volumes:
+      # Bind-mount source only — node_modules stay inside the container
+      - ./apps/api/src:/app/apps/api/src
+      - ./packages/schemas/src:/app/packages/schemas/src
+    working_dir: /app/apps/api
+    develop:
+      watch:
+        - action: sync
+          path: ./apps/api/src
+          target: /app/apps/api/src
+        - action: sync
+          path: ./packages/schemas/src
+          target: /app/packages/schemas/src
+
+  # ── Web (Next.js — hot reload via next dev) ──────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: deps
+    command: pnpm dev
+    environment:
+      INTERNAL_API_URL: http://api:3001
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web/src:/app/apps/web/src
+      - ./packages/schemas/src:/app/packages/schemas/src
+    working_dir: /app/apps/web
+    develop:
+      watch:
+        - action: sync
+          path: ./apps/web/src
+          target: /app/apps/web/src
+        - action: sync
+          path: ./packages/schemas/src
+          target: /app/packages/schemas/src
