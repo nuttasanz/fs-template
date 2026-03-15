@@ -1,3 +1,9 @@
+import { resolve } from 'node:path';
+import { config } from 'dotenv';
+// Load .env from the monorepo root for local development.
+// In production, env vars are injected by Docker Compose — config() is a no-op.
+config({ path: resolve(__dirname, '../../../.env') });
+
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';

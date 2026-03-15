@@ -1,9 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 import { randomBytes, createHash } from 'crypto';
 import { and, eq, isNull } from 'drizzle-orm';
@@ -12,6 +7,7 @@ import type { LoginDTO, SessionDTO, UserDTO } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { sessions, users, profiles } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
+import { AppError } from '../common/exceptions/app-error';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const COOKIE_NAME = 'sid';
@@ -27,10 +23,10 @@ export class AuthService {
       .where(and(eq(users.email, dto.email), isNull(users.deletedAt)))
       .limit(1);
 
-    if (!user) throw new UnauthorizedException('Invalid credentials.');
+    if (!user) throw AppError.unauthorized('Invalid credentials.');
 
     const passwordMatch = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!passwordMatch) throw new UnauthorizedException('Invalid credentials.');
+    if (!passwordMatch) throw AppError.unauthorized('Invalid credentials.');
 
     // Revoke any existing sessions for this user before creating a new one.
     await this.db.delete(sessions).where(eq(sessions.userId, user.id));
@@ -44,7 +40,7 @@ export class AuthService {
       .values({ userId: user.id, token: tokenHash, expiresAt })
       .returning();
 
-    if (!session) throw new UnauthorizedException('Failed to create session.');
+    if (!session) throw AppError.internal('Failed to create session. Please try again.');
 
     res.cookie(COOKIE_NAME, rawToken, {
       httpOnly: true,
@@ -85,7 +81,7 @@ export class AuthService {
       .where(and(eq(users.id, sessionUser.id), isNull(users.deletedAt)))
       .limit(1);
 
-    if (!row) throw new NotFoundException('User not found.');
+    if (!row) throw AppError.notFound('User not found.');
 
     return {
       id: row.id,

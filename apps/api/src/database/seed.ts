@@ -5,6 +5,10 @@
  * Required env vars: DATABASE_URL, SEED_EMAIL, SEED_PASSWORD
  * Optional env vars: SEED_FIRST_NAME, SEED_LAST_NAME
  */
+import path from 'path';
+import { config } from 'dotenv';
+config({ path: path.resolve(__dirname, '../../../../.env') });
+
 import 'reflect-metadata';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';

@@ -1,10 +1,4 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import type {
@@ -17,6 +11,7 @@ import type {
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { profiles, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
+import { AppError } from '../common/exceptions/app-error';
 
 export interface FindUsersQuery {
   page?: number;
@@ -103,7 +98,7 @@ export class UsersService {
       .where(and(eq(users.id, id), isNull(users.deletedAt)))
       .limit(1);
 
-    if (!row) throw new NotFoundException('User not found.');
+    if (!row) throw AppError.notFound('User not found.');
     return this.toUserDTO(row);
   }
 
@@ -117,7 +112,7 @@ export class UsersService {
       .where(eq(users.email, dto.email))
       .limit(1);
 
-    if (existing) throw new ConflictException('Email is already in use.');
+    if (existing) throw AppError.conflict('User with this email already exists.');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
@@ -126,7 +121,7 @@ export class UsersService {
       .values({ email: dto.email, passwordHash, role: dto.role, status: 'ACTIVE' })
       .returning();
 
-    if (!user) throw new Error('Failed to insert user.');
+    if (!user) throw AppError.internal('Failed to create user. Please try again.');
 
     const [profile] = await this.db
       .insert(profiles)
@@ -138,7 +133,7 @@ export class UsersService {
       })
       .returning();
 
-    if (!profile) throw new Error('Failed to insert profile.');
+    if (!profile) throw AppError.internal('Failed to create user. Please try again.');
 
     return this.toUserDTO({ ...user, ...profile });
   }
@@ -188,9 +183,7 @@ export class UsersService {
       actorRole !== 'SUPER_ADMIN' &&
       ROLE_HIERARCHY[targetRole] >= ROLE_HIERARCHY[actorRole]
     ) {
-      throw new ForbiddenException(
-        'You do not have permission to manage users with this role.',
-      );
+      throw AppError.forbidden('You do not have permission to manage users with this role.');
     }
   }
 

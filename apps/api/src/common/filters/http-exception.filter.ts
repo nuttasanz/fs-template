@@ -1,21 +1,27 @@
-import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
+import { AppError } from '../exceptions/app-error';
+import type { ErrorField, ErrorResponse } from '@repo/schemas';
 
-interface ErrorResponse {
-  success: false;
-  message: string;
-  errors: string[];
+function resolveCode(status: number, hasErrors: boolean): string {
+  if (status === 400 && hasErrors) return 'VALIDATION_ERROR';
+  const map: Record<number, string> = {
+    400: 'BAD_REQUEST',
+    401: 'UNAUTHORIZED',
+    403: 'FORBIDDEN',
+    404: 'NOT_FOUND',
+    409: 'CONFLICT',
+    422: 'UNPROCESSABLE_ENTITY',
+  };
+  return map[status] ?? 'INTERNAL_SERVER_ERROR';
 }
 
 /**
- * Catches all exceptions and normalises them to:
- * { success: false, message: string, errors: string[] }
+ * Catches all exceptions and normalises them to the shared ErrorResponse contract:
+ * { success: false, message, code, errors?, timestamp, path }
+ *
+ * Handles AppError (application errors), NestJS HttpException (guards/core),
+ * and unexpected errors. In production, 5xx responses never leak internal details.
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -23,44 +29,69 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
 
-    const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    const isProduction = process.env['NODE_ENV'] === 'production';
 
-    const body: ErrorResponse = {
-      success: false,
-      message: 'Internal server error',
-      errors: [],
-    };
+    // ── AppError (our custom errors) ────────────────────────────────────────
+    if (exception instanceof AppError) {
+      const status = exception.statusCode;
 
+      if (status >= 500 && isProduction) {
+        res.status(status).json({
+          success: false,
+          message: 'Internal server error',
+          code: 'INTERNAL_SERVER_ERROR',
+        } satisfies ErrorResponse);
+        return;
+      }
+
+      const hasErrors = (exception.errors?.length ?? 0) > 0;
+      res.status(status).json({
+        success: false,
+        message: exception.message,
+        code: resolveCode(status, hasErrors),
+        ...(hasErrors && { errors: exception.errors }),
+      } satisfies ErrorResponse);
+      return;
+    }
+
+    // ── NestJS HttpException (thrown by guards, pipes, core) ────────────────
     if (exception instanceof HttpException) {
+      const status = exception.getStatus();
       const raw = exception.getResponse();
 
+      let message = 'An error occurred';
+      let errors: ErrorField[] | undefined;
+
       if (typeof raw === 'string') {
-        body.message = raw;
+        message = raw;
       } else if (raw !== null && typeof raw === 'object') {
         const r = raw as Record<string, unknown>;
         const msg = r['message'];
-
         if (typeof msg === 'string') {
-          body.message = msg;
+          message = msg;
         } else if (Array.isArray(msg)) {
-          // Class-validator style: message is string[]
-          body.message = 'Validation failed';
-          body.errors = msg as string[];
-        } else if (msg !== null && typeof msg === 'object') {
-          // ZodValidationPipe: message is { formErrors: string[], fieldErrors: Record<string, string[]> }
-          body.message = 'Validation failed';
-          const m = msg as { formErrors?: string[]; fieldErrors?: Record<string, string[]> };
-          const fieldErrors = Object.entries(m.fieldErrors ?? {}).flatMap(([field, errs]) =>
-            (errs ?? []).map((e) => `${field}: ${e}`),
-          );
-          body.errors = [...(m.formErrors ?? []), ...fieldErrors];
+          message = 'Validation failed';
+          errors = (msg as string[]).map((m) => ({ field: '_root', message: m }));
         }
       }
+
+      const hasErrors = (errors?.length ?? 0) > 0;
+      res.status(status).json({
+        success: false,
+        message,
+        code: resolveCode(status, hasErrors),
+        ...(hasErrors && { errors }),
+      } satisfies ErrorResponse);
+      return;
     }
 
-    res.status(status).json(body);
+    // ── Unexpected / unhandled error ─────────────────────────────────────────
+    console.error('[HttpExceptionFilter] Unhandled exception:', exception);
+
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: isProduction ? 'Internal server error' : String(exception),
+      code: 'INTERNAL_SERVER_ERROR',
+    } satisfies ErrorResponse);
   }
 }

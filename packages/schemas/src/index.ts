@@ -4,7 +4,7 @@ export {
   UserDTOSchema,
   CreateUserDTOSchema,
   UpdateUserDTOSchema,
-} from "./user.schema.js";
+} from "./user.schema";
 
 export type {
   UserRole,
@@ -12,8 +12,12 @@ export type {
   UserDTO,
   CreateUserDTO,
   UpdateUserDTO,
-} from "./user.schema.js";
+} from "./user.schema";
 
-export { LoginDTOSchema, SessionDTOSchema } from "./auth.schema.js";
+export { LoginDTOSchema, SessionDTOSchema } from "./auth.schema";
 
-export type { LoginDTO, SessionDTO } from "./auth.schema.js";
+export type { LoginDTO, SessionDTO } from "./auth.schema";
+
+export { ErrorFieldSchema, ErrorResponseSchema, BaseResponseSchema } from "./response.schema";
+
+export type { ErrorField, ErrorResponse, BaseResponse } from "./response.schema";
