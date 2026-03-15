@@ -1,7 +1,6 @@
-export interface ErrorField {
-  field: string;
-  message: string;
-}
+import type { ErrorField } from '@repo/schemas';
+
+export type { ErrorField };
 
 /**
  * Application-level error with a fixed HTTP status code.

@@ -1,6 +1,23 @@
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
+// ErrorCode — machine-readable codes for all error responses
+// ---------------------------------------------------------------------------
+
+export const ErrorCode = {
+  VALIDATION_FAILED:    'VALIDATION_FAILED',
+  AUTH_UNAUTHORIZED:    'AUTH_UNAUTHORIZED',
+  FORBIDDEN:            'FORBIDDEN',
+  NOT_FOUND:            'NOT_FOUND',
+  CONFLICT:             'CONFLICT',
+  BAD_REQUEST:          'BAD_REQUEST',
+  UNPROCESSABLE_ENTITY: 'UNPROCESSABLE_ENTITY',
+  INTERNAL_ERROR:       'INTERNAL_ERROR',
+} as const;
+
+export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+// ---------------------------------------------------------------------------
 // ErrorField — a single per-field validation error
 // ---------------------------------------------------------------------------
 

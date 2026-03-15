@@ -1,27 +1,31 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
+import { ZodError } from 'zod';
 import { AppError } from '../exceptions/app-error';
+import { ErrorCode } from '@repo/schemas';
 import type { ErrorField, ErrorResponse } from '@repo/schemas';
 
-function resolveCode(status: number, hasErrors: boolean): string {
-  if (status === 400 && hasErrors) return 'VALIDATION_ERROR';
-  const map: Record<number, string> = {
-    400: 'BAD_REQUEST',
-    401: 'UNAUTHORIZED',
-    403: 'FORBIDDEN',
-    404: 'NOT_FOUND',
-    409: 'CONFLICT',
-    422: 'UNPROCESSABLE_ENTITY',
+function resolveCode(status: number, hasErrors: boolean): ErrorCode {
+  if (status === 400 && hasErrors) return ErrorCode.VALIDATION_FAILED;
+  const map: Partial<Record<number, ErrorCode>> = {
+    400: ErrorCode.BAD_REQUEST,
+    401: ErrorCode.AUTH_UNAUTHORIZED,
+    403: ErrorCode.FORBIDDEN,
+    404: ErrorCode.NOT_FOUND,
+    409: ErrorCode.CONFLICT,
+    422: ErrorCode.UNPROCESSABLE_ENTITY,
   };
-  return map[status] ?? 'INTERNAL_SERVER_ERROR';
+  return map[status] ?? ErrorCode.INTERNAL_ERROR;
 }
 
 /**
  * Catches all exceptions and normalises them to the shared ErrorResponse contract:
- * { success: false, message, code, errors?, timestamp, path }
+ * { success: false, message, code, errors? }
  *
- * Handles AppError (application errors), NestJS HttpException (guards/core),
- * and unexpected errors. In production, 5xx responses never leak internal details.
+ * Catch order (most-specific → least-specific):
+ *   AppError → ZodError → pg DatabaseError → HttpException → unexpected
+ *
+ * In production, 5xx responses never leak internal details.
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -39,7 +43,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         res.status(status).json({
           success: false,
           message: 'Internal server error',
-          code: 'INTERNAL_SERVER_ERROR',
+          code: ErrorCode.INTERNAL_ERROR,
         } satisfies ErrorResponse);
         return;
       }
@@ -50,6 +54,40 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message: exception.message,
         code: resolveCode(status, hasErrors),
         ...(hasErrors && { errors: exception.errors }),
+      } satisfies ErrorResponse);
+      return;
+    }
+
+    // ── ZodError (direct schema.parse() calls in services) ──────────────────
+    if (exception instanceof ZodError) {
+      const errors: ErrorField[] = exception.issues.map((issue) => ({
+        field: issue.path.length > 0 ? issue.path.join('.') : '_root',
+        message: issue.message,
+      }));
+      res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        message: 'Validation failed',
+        code: ErrorCode.VALIDATION_FAILED,
+        errors,
+      } satisfies ErrorResponse);
+      return;
+    }
+
+    // ── pg DatabaseError (5-character SQLSTATE code, e.g. '23505') ──────────
+    // Services catch known codes (unique violation etc.) and re-throw as AppError,
+    // so this branch only fires on genuinely unexpected database failures.
+    const isPgError =
+      exception instanceof Error &&
+      'code' in exception &&
+      typeof (exception as Record<string, unknown>)['code'] === 'string' &&
+      /^\d{5}$/.test((exception as Record<string, unknown>)['code'] as string);
+
+    if (isPgError) {
+      console.error('[HttpExceptionFilter] Database error:', exception);
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: isProduction ? 'Internal server error' : (exception as Error).message,
+        code: ErrorCode.INTERNAL_ERROR,
       } satisfies ErrorResponse);
       return;
     }
@@ -91,7 +129,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: isProduction ? 'Internal server error' : String(exception),
-      code: 'INTERNAL_SERVER_ERROR',
+      code: ErrorCode.INTERNAL_ERROR,
     } satisfies ErrorResponse);
   }
 }
