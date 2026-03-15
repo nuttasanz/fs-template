@@ -1,4 +1,4 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, StreamableFile } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Observable } from 'rxjs';
 import { map } from 'rxjs';
@@ -17,6 +17,9 @@ export class TransformInterceptor<T> implements NestInterceptor<T, BaseResponse<
       map((data) => {
         // 204 No Content — void handlers return undefined; pass through untouched.
         if (data === null || data === undefined) return data as undefined;
+
+        // Raw streams / file downloads — pass through untouched to prevent corruption.
+        if (data instanceof StreamableFile) return data as unknown as BaseResponse<T>;
 
         // Already-formatted response — do not double-wrap.
         if (typeof data === 'object' && 'success' in (data as object))

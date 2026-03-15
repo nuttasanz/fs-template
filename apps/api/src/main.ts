@@ -6,6 +6,7 @@ config({ path: resolve(__dirname, '../../../.env') });
 
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { VersioningType } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -14,6 +15,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+
+  // ── Versioning ───────────────────────────────────────────────────────────
+  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   // ── Global Middleware ────────────────────────────────────────────────────
   app.use(loggerMiddleware);   // Logs: METHOD /path STATUS — Xms

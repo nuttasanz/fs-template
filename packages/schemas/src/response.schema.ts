@@ -67,10 +67,15 @@ export const BaseResponseSchema = <T>(dataSchema: z.ZodType<T>) =>
     data: dataSchema
       .optional()
       .describe('The response payload. Omitted when there is no data to return.'),
+    meta: z
+      .unknown()
+      .optional()
+      .describe('Optional envelope metadata (e.g. pagination cursors, totals).'),
   });
 
 export type BaseResponse<T> = {
   success: true;
   message: string;
   data?: T;
+  meta?: unknown;
 };
