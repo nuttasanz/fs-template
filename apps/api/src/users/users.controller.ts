@@ -34,6 +34,7 @@ import { SessionGuard } from '../common/guards/session.guard';
 import { RbacGuard } from '../common/guards/rbac.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import type { SessionUser } from '../common/types/session.types';
 
@@ -46,6 +47,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
+  @ResponseMessage('Users retrieved.')
   @ApiOperation({ summary: 'List users with pagination and optional filters' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
@@ -70,6 +72,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @ResponseMessage('User retrieved.')
   @ApiOperation({ summary: 'Get a single user by ID' })
   @ApiResponse({ status: 200, description: 'The requested user.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
@@ -78,6 +81,7 @@ export class UsersController {
   }
 
   @Post()
+  @ResponseMessage('User created.')
   @ApiOperation({ summary: 'Create a new user (ADMIN+ only)' })
   @ApiBody({
     schema: {
@@ -104,6 +108,7 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @ResponseMessage('User updated.')
   @ApiOperation({ summary: 'Update a user (RBAC-enforced)' })
   @ApiBody({
     schema: {

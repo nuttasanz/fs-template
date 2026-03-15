@@ -16,6 +16,7 @@ import { LoginDTOSchema, type LoginDTO, type SessionDTO, type UserDTO } from '@r
 import { AuthService } from './auth.service';
 import { SessionGuard } from '../common/guards/session.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import type { SessionUser } from '../common/types/session.types';
 
@@ -26,6 +27,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Login successful.')
   @ApiOperation({ summary: 'Authenticate and receive a session cookie' })
   @ApiBody({
     schema: {
@@ -61,6 +63,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(SessionGuard)
+  @ResponseMessage('User profile retrieved.')
   @ApiCookieAuth('sid')
   @ApiOperation({ summary: 'Return the currently authenticated user' })
   @ApiResponse({ status: 200, description: 'The authenticated user.' })
