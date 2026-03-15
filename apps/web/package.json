@@ -1,0 +1,36 @@
+{
+  "name": "@repo/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next tsconfig.tsbuildinfo",
+    "lint": "next lint",
+    "format": "prettier --write src"
+  },
+  "dependencies": {
+    "@mantine/core": "^7.17.1",
+    "@mantine/form": "^7.17.1",
+    "@mantine/hooks": "^7.17.1",
+    "@mantine/modals": "^7.17.1",
+    "@mantine/notifications": "^7.17.1",
+    "@repo/schemas": "workspace:*",
+    "@tabler/icons-react": "^3.31.0",
+    "@tanstack/react-query": "^5.74.4",
+    "mantine-form-zod-resolver": "^1.1.0",
+    "next": "^15.2.4",
+    "postcss": "^8.5.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.7.3"
+  }
+}
