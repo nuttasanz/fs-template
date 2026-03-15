@@ -9,14 +9,22 @@ import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { loggerMiddleware } from './common/middleware/logger.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
+  // ── Global Middleware ────────────────────────────────────────────────────
+  app.use(loggerMiddleware);   // Logs: METHOD /path STATUS — Xms
   app.use(cookieParser());
+
+  // ── Global Prefix & Filters ─────────────────────────────────────────────
   app.setGlobalPrefix('api');
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Global interceptors (TransformInterceptor, AuditLogInterceptor) are
+  // registered via APP_INTERCEPTOR in AppModule to support DI.
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Admin Backoffice API')
