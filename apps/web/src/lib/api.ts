@@ -1,8 +1,11 @@
+import type { BaseResponse, ErrorField, ErrorResponse } from '@repo/schemas';
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
-    public readonly fields?: Record<string, string[]>,
+    public readonly code?: string,
+    public readonly errors?: ErrorField[],
   ) {
     super(message);
     this.name = 'ApiError';
@@ -20,13 +23,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { message?: string; errors?: Record<string, string[]> };
-    throw new ApiError(res.status, body.message ?? 'Request failed', body.errors);
+    const body = await res.json().catch(() => ({})) as Partial<ErrorResponse>;
+    throw new ApiError(res.status, body.message ?? 'Request failed', body.code, body.errors);
   }
 
   if (res.status === 204) return undefined as T;
 
-  return res.json() as Promise<T>;
+  const body = (await res.json()) as BaseResponse<T>;
+  return body.data as T;
 }
 
 export const apiGet = <T>(path: string): Promise<T> => request<T>(path);

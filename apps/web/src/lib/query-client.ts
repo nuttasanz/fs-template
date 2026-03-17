@@ -1,8 +1,17 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, MutationCache } from '@tanstack/react-query';
 import { ApiError } from './api';
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({
+    // MutationCache.onError fires once per failure regardless of per-mutation callbacks,
+    // making it the right place for cross-cutting concerns like session expiry.
+    mutationCache: new MutationCache({
+      onError: (error) => {
+        if (error instanceof ApiError && error.status === 401) {
+          window.location.href = '/login';
+        }
+      },
+    }),
     defaultOptions: {
       queries: {
         staleTime: 30 * 1000,

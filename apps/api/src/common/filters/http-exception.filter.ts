@@ -1,5 +1,5 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../exceptions/app-error';
 import { ErrorCode } from '@repo/schemas';
@@ -32,8 +32,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
+    const req = ctx.getRequest<Request>();
 
     const isProduction = process.env['NODE_ENV'] === 'production';
+    const meta = { timestamp: new Date().toISOString(), path: req.url };
 
     // ── AppError (our custom errors) ────────────────────────────────────────
     if (exception instanceof AppError) {
@@ -44,6 +46,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
           success: false,
           message: 'Internal server error',
           code: ErrorCode.INTERNAL_ERROR,
+          ...meta,
         } satisfies ErrorResponse);
         return;
       }
@@ -54,6 +57,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message: exception.message,
         code: resolveCode(status, hasErrors),
         ...(hasErrors && { errors: exception.errors }),
+        ...meta,
       } satisfies ErrorResponse);
       return;
     }
@@ -69,6 +73,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message: 'Validation failed',
         code: ErrorCode.VALIDATION_FAILED,
         errors,
+        ...meta,
       } satisfies ErrorResponse);
       return;
     }
@@ -88,6 +93,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         success: false,
         message: isProduction ? 'Internal server error' : (exception as Error).message,
         code: ErrorCode.INTERNAL_ERROR,
+        ...meta,
       } satisfies ErrorResponse);
       return;
     }
@@ -119,6 +125,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message,
         code: resolveCode(status, hasErrors),
         ...(hasErrors && { errors }),
+        ...meta,
       } satisfies ErrorResponse);
       return;
     }
@@ -130,6 +137,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       success: false,
       message: isProduction ? 'Internal server error' : String(exception),
       code: ErrorCode.INTERNAL_ERROR,
+      ...meta,
     } satisfies ErrorResponse);
   }
 }

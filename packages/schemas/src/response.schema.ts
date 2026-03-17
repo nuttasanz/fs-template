@@ -46,6 +46,8 @@ export const ErrorResponseSchema = z.object({
     .array(ErrorFieldSchema)
     .optional()
     .describe('Per-field validation errors. Present only for VALIDATION_ERROR responses.'),
+  timestamp: z.string().datetime().optional().describe('ISO 8601 timestamp of when the error occurred.'),
+  path: z.string().optional().describe('The request path that produced this error.'),
 });
 
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
