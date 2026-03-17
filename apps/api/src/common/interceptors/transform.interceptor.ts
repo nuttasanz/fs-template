@@ -25,6 +25,11 @@ export class TransformInterceptor<T> implements NestInterceptor<T, BaseResponse<
         if (typeof data === 'object' && 'success' in (data as object))
           return data as unknown as BaseResponse<T>;
 
+        // Terminus health-check responses ({ status, info, error, details }) must
+        // pass through unwrapped so their HTTP status (200 / 503) is preserved.
+        if (typeof data === 'object' && 'status' in (data as object) && 'details' in (data as object))
+          return data as unknown as BaseResponse<T>;
+
         const message =
           this.reflector.getAllAndOverride<string>(RESPONSE_MESSAGE_KEY, [
             context.getHandler(),

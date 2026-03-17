@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
@@ -8,10 +9,22 @@ import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 @Module({
   imports: [
     ConfigModule,                                                                          // first — validates env before any other module's useFactory runs
+    LoggerModule.forRoot({
+      pinoHttp: {
+        // Re-use the ID stamped by RequestIdMiddleware so every log line carries the same ID.
+        genReqId: (req) => req.headers['x-request-id'] as string,
+        // Pretty output for local development; plain JSON in production (parsed by log aggregators).
+        transport: process.env['NODE_ENV'] !== 'production'
+          ? { target: 'pino-pretty', options: { colorize: true, singleLine: true } }
+          : undefined,
+        autoLogging: true,
+      },
+    }),
     ThrottlerModule.forRoot([{ name: 'global', ttl: 15 * 60 * 1000, limit: 100 }]),      // 100 req / 15 min globally
     DatabaseModule,
     AuthModule,
@@ -27,4 +40,9 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     { provide: APP_INTERCEPTOR, useClass: AuditLogInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // Runs before pino-http so every request has an ID before logging occurs.
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

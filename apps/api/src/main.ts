@@ -7,15 +7,18 @@ config({ path: resolve(__dirname, '../../../.env') });
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { VersioningType } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { loggerMiddleware } from './common/middleware/logger.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule); // ConfigModule validates env here
+  // bufferLogs: true holds NestJS bootstrap messages in memory until app.useLogger()
+  // is called, so all output is flushed through pino instead of the default logger.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger)); // redirect all NestJS logs through pino
 
   // ── Security Headers ─────────────────────────────────────────────────────
   app.use(helmet()); // must be first — sets X-Content-Type-Options, CSP, X-Frame-Options, etc.
@@ -35,11 +38,12 @@ async function bootstrap(): Promise<void> {
     origin: origins,
     credentials: true,                                           // required for the HttpOnly sid cookie
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Accept', 'X-Request-Id'], // allow callers to supply a trace ID
   });
 
   // ── Global Middleware ────────────────────────────────────────────────────
-  app.use(loggerMiddleware);   // Logs: METHOD /path STATUS — Xms
+  // RequestIdMiddleware is registered via AppModule.configure() (NestModule).
+  // pino-http (from LoggerModule) handles request logging — no manual logger middleware needed.
   app.use(cookieParser());
 
   // ── Global Prefix & Filters ─────────────────────────────────────────────
@@ -59,7 +63,7 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env['PORT'] ?? 3001;
   await app.listen(port);
-  console.log(`API running on http://localhost:${port}/api`);
+  app.get(Logger).log(`API running on http://localhost:${port}/api`);
 }
 
 bootstrap().catch((err) => {
