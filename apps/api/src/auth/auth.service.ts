@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 import { randomBytes, createHash } from 'crypto';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, lt } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import type { LoginDTO, SessionDTO, UserDTO } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
@@ -29,7 +29,12 @@ export class AuthService {
     if (!passwordMatch) throw AppError.unauthorized('Invalid credentials.');
 
     // Revoke any existing sessions for this user before creating a new one.
-    await this.db.delete(sessions).where(eq(sessions.userId, user.id));
+    // await this.db.delete(sessions).where(eq(sessions.userId, user.id));
+
+    // Delete only Session expired for clear Database trash.
+    await this.db
+      .delete(sessions)
+      .where(and(eq(sessions.userId, user.id), lt(sessions.expiresAt, new Date())));
 
     const rawToken = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
