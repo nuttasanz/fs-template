@@ -12,6 +12,7 @@ import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provide
 import { profiles, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
 import { AppError } from '../common/exceptions/app-error';
+import { ROLE_HIERARCHY } from '../common/constants/role-hierarchy';
 
 export interface FindUsersQuery {
   page?: number;
@@ -26,13 +27,6 @@ export interface PaginatedUsers {
   page: number;
   limit: number;
 }
-
-// Numeric hierarchy for RBAC enforcement inside service methods.
-const ROLE_HIERARCHY: Record<UserRole, number> = {
-  USER: 1,
-  ADMIN: 2,
-  SUPER_ADMIN: 3,
-};
 
 @Injectable()
 export class UsersService {
@@ -116,26 +110,30 @@ export class UsersService {
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
-    const [user] = await this.db
-      .insert(users)
-      .values({ email: dto.email, passwordHash, role: dto.role, status: 'ACTIVE' })
-      .returning();
+    const row = await this.db.transaction(async (tx) => {
+      const [user] = await tx
+        .insert(users)
+        .values({ email: dto.email, passwordHash, role: dto.role, status: 'ACTIVE' })
+        .returning();
 
-    if (!user) throw AppError.internal('Failed to create user. Please try again.');
+      if (!user) throw AppError.internal('Failed to create user. Please try again.');
 
-    const [profile] = await this.db
-      .insert(profiles)
-      .values({
-        userId: user.id,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        bio: dto.bio ?? null,
-      })
-      .returning();
+      const [profile] = await tx
+        .insert(profiles)
+        .values({
+          userId: user.id,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          bio: dto.bio ?? null,
+        })
+        .returning();
 
-    if (!profile) throw AppError.internal('Failed to create user. Please try again.');
+      if (!profile) throw AppError.internal('Failed to create user. Please try again.');
 
-    return this.toUserDTO({ ...user, ...profile });
+      return { ...user, ...profile };
+    });
+
+    return this.toUserDTO(row);
   }
 
   async update(id: string, dto: UpdateUserDTO, actor: SessionUser): Promise<UserDTO> {
@@ -144,22 +142,21 @@ export class UsersService {
 
     if (dto.role) this.enforceRbac(actor.role, dto.role);
 
-    await this.db
-      .update(users)
-      .set({
-        ...(dto.role && { role: dto.role }),
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, id));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({ ...(dto.role && { role: dto.role }), updatedAt: new Date() })
+        .where(eq(users.id, id));
 
-    await this.db
-      .update(profiles)
-      .set({
-        ...(dto.firstName && { firstName: dto.firstName }),
-        ...(dto.lastName && { lastName: dto.lastName }),
-        ...(dto.bio !== undefined && { bio: dto.bio ?? null }),
-      })
-      .where(eq(profiles.userId, id));
+      await tx
+        .update(profiles)
+        .set({
+          ...(dto.firstName && { firstName: dto.firstName }),
+          ...(dto.lastName && { lastName: dto.lastName }),
+          ...(dto.bio !== undefined && { bio: dto.bio ?? null }),
+        })
+        .where(eq(profiles.userId, id));
+    });
 
     return this.findOne(id);
   }

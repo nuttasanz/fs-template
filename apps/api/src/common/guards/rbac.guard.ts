@@ -9,13 +9,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import type { UserRole } from '@repo/schemas';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-
-// Numeric hierarchy used for ≥ comparisons.
-const ROLE_HIERARCHY: Record<UserRole, number> = {
-  USER: 1,
-  ADMIN: 2,
-  SUPER_ADMIN: 3,
-};
+import { ROLE_HIERARCHY } from '../constants/role-hierarchy';
 
 @Injectable()
 export class RbacGuard implements CanActivate {
