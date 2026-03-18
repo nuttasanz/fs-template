@@ -5,17 +5,14 @@ import { z } from "zod";
 // ---------------------------------------------------------------------------
 
 export const LoginDTOSchema = z.object({
-  email: z
-    .string()
-    .email()
-    .describe("The email address associated with the account."),
+  email: z.string().email().describe('The email address associated with the account.'),
   password: z
     .string()
-    .min(1)
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
     .describe(
-      "The account password. Only presence is validated here — enforcing " +
-        "complexity rules on the login form would leak the current password " +
-        "policy to attackers. Full verification happens server-side."
+      'The account password. Only presence is validated here — enforcing ' +
+        'complexity rules on the login form would leak the current password ' +
+        'policy to attackers. Full verification happens server-side.',
     ),
 });
 
