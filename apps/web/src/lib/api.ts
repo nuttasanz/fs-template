@@ -1,4 +1,7 @@
 import type { BaseResponse, ErrorField, ErrorResponse } from '@repo/schemas';
+import { env } from '@/env';
+
+const API_BASE = `${env.NEXT_PUBLIC_API_URL}/api/v1`;
 
 export class ApiError extends Error {
   constructor(
@@ -12,15 +15,27 @@ export class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      ...init,
+      signal: controller.signal,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        ...init.headers,
+      },
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!res.ok) {
     const isJson = res.headers.get('content-type')?.includes('application/json') ?? false;
@@ -39,13 +54,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body.data as T;
 }
 
-export const apiGet = <T>(path: string): Promise<T> => request<T>(`/api/v1${path}`);
+export const apiGet = <T>(path: string): Promise<T> => request<T>(`${API_BASE}${path}`);
 
 export const apiPost = <T>(path: string, body: unknown): Promise<T> =>
-  request<T>(`/api/v1${path}`, { method: 'POST', body: JSON.stringify(body) });
+  request<T>(`${API_BASE}${path}`, { method: 'POST', body: JSON.stringify(body) });
 
 export const apiPatch = <T>(path: string, body: unknown): Promise<T> =>
-  request<T>(`/api/v1${path}`, { method: 'PATCH', body: JSON.stringify(body) });
+  request<T>(`${API_BASE}${path}`, { method: 'PATCH', body: JSON.stringify(body) });
 
 export const apiDelete = (path: string): Promise<void> =>
-  request<void>(`/api/v1${path}`, { method: 'DELETE' });
+  request<void>(`${API_BASE}${path}`, { method: 'DELETE' });

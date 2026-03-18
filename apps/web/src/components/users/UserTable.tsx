@@ -7,6 +7,7 @@ import {
   Badge,
   ActionIcon,
   Group,
+  Loader,
   Skeleton,
   Stack,
   Text,
@@ -16,10 +17,15 @@ import { useDisclosure } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconEdit, IconTrash, IconAlertCircle } from '@tabler/icons-react';
+import dynamic from 'next/dynamic';
 import { useUsers, useDeleteUser } from '@/hooks/useUsers';
 import { canActorManageTarget } from '@/lib/rbac';
-import { UserFormModal } from './UserFormModal';
 import type { UserDTO, UserRole, UserStatus } from '@repo/schemas';
+
+const UserFormModal = dynamic(
+  () => import('./UserFormModal').then((m) => m.UserFormModal),
+  { ssr: false, loading: () => <Loader size="sm" /> },
+);
 
 const ROLE_COLORS: Record<UserRole, string> = {
   SUPER_ADMIN: 'red',
