@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { apiGet, apiPost, ApiError } from '@/lib/api';
@@ -43,15 +43,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
     await apiPost('/auth/logout', {}).catch(() => {});
     queryClient.clear();
     router.replace('/login');
-  };
+  }, [queryClient, router]);
 
-  return (
-    <AuthContext.Provider value={{ user, isLoading, logout }}>{children}</AuthContext.Provider>
-  );
+  const value = useMemo(() => ({ user, isLoading, logout }), [user, isLoading, logout]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
