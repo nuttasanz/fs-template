@@ -1,5 +1,13 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import type {
   CreateUserDTO,
@@ -11,11 +19,11 @@ import type {
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { profiles, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
-import { AppError } from '../common/exceptions/app-error';
+import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { ROLE_HIERARCHY } from '../common/constants/role-hierarchy';
 
 export interface FindUsersQuery {
-  page?: number;
+  cursor?: string;
   limit?: number;
   role?: UserRole;
   status?: UserStatus;
@@ -23,55 +31,90 @@ export interface FindUsersQuery {
 
 export interface PaginatedUsers {
   data: UserDTO[];
-  total: number;
-  page: number;
+  nextCursor: string | null;
   limit: number;
 }
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient) {}
+  constructor(
+    @Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
 
   async findAll(query: FindUsersQuery): Promise<PaginatedUsers> {
-    const page = query.page ?? 1;
-    const limit = Math.min(query.limit ?? 20, 100);
-    const offset = (page - 1) * limit;
+    const limit = Math.min(
+      query.limit ?? this.config.USERS_PAGE_LIMIT,
+      this.config.USERS_PAGE_LIMIT_MAX,
+    );
 
-    const conditions = [
+    let cursorDate: Date | undefined;
+    let cursorId: string | undefined;
+    if (query.cursor) {
+      try {
+        const decoded = JSON.parse(
+          Buffer.from(query.cursor, 'base64url').toString('utf-8'),
+        ) as { createdAt: string; id: string };
+        cursorDate = new Date(decoded.createdAt);
+        cursorId = decoded.id;
+        if (isNaN(cursorDate.getTime()) || !cursorId) throw new Error();
+      } catch {
+        throw new BadRequestException('Invalid pagination cursor.');
+      }
+    }
+
+    const baseConditions = [
       isNull(users.deletedAt),
       query.role ? eq(users.role, query.role) : undefined,
       query.status ? eq(users.status, query.status) : undefined,
     ].filter(Boolean);
 
-    const where = conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined;
+    const cursorCondition =
+      cursorDate && cursorId
+        ? or(
+            lt(users.createdAt, cursorDate),
+            and(eq(users.createdAt, cursorDate), lt(users.id, cursorId)),
+          )
+        : undefined;
 
-    const [rows, [countRow]] = await Promise.all([
-      this.db
-        .select({
-          id: users.id,
-          email: users.email,
-          role: users.role,
-          status: users.status,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-          firstName: profiles.firstName,
-          lastName: profiles.lastName,
-          bio: profiles.bio,
-        })
-        .from(users)
-        .leftJoin(profiles, eq(profiles.userId, users.id))
-        .where(where)
-        .orderBy(desc(users.createdAt))
-        .limit(limit)
-        .offset(offset),
-      this.db
-        .select({ total: count() })
-        .from(users)
-        .where(where),
-    ]);
+    const allConditions = [...baseConditions, cursorCondition].filter(Boolean);
+    const where =
+      allConditions.length > 0 ? and(...(allConditions as Parameters<typeof and>)) : undefined;
 
-    const data = rows.map((row) => this.toUserDTO(row));
-    return { data, total: countRow?.total ?? 0, page, limit };
+    // Fetch limit+1 to detect whether a next page exists without a COUNT(*) query.
+    const rows = await this.db
+      .select({
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        status: users.status,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        firstName: profiles.firstName,
+        lastName: profiles.lastName,
+        bio: profiles.bio,
+      })
+      .from(users)
+      .leftJoin(profiles, eq(profiles.userId, users.id))
+      .where(where)
+      .orderBy(desc(users.createdAt), desc(users.id))
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const lastRow = page.at(-1);
+
+    const nextCursor =
+      hasMore && lastRow
+        ? Buffer.from(
+            JSON.stringify({
+              createdAt: lastRow.createdAt.toISOString(),
+              id: lastRow.id,
+            }),
+          ).toString('base64url')
+        : null;
+
+    return { data: page.map((r) => this.toUserDTO(r)), nextCursor, limit };
   }
 
   async findOne(id: string): Promise<UserDTO> {
@@ -92,7 +135,7 @@ export class UsersService {
       .where(and(eq(users.id, id), isNull(users.deletedAt)))
       .limit(1);
 
-    if (!row) throw AppError.notFound('User not found.');
+    if (!row) throw new NotFoundException('User not found.');
     return this.toUserDTO(row);
   }
 
@@ -106,7 +149,7 @@ export class UsersService {
       .where(eq(users.email, dto.email))
       .limit(1);
 
-    if (existing) throw AppError.conflict('User with this email already exists.');
+    if (existing) throw new ConflictException('User with this email already exists.');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
@@ -116,7 +159,7 @@ export class UsersService {
         .values({ email: dto.email, passwordHash, role: dto.role, status: 'ACTIVE' })
         .returning();
 
-      if (!user) throw AppError.internal('Failed to create user. Please try again.');
+      if (!user) throw new InternalServerErrorException('Failed to create user. Please try again.');
 
       const [profile] = await tx
         .insert(profiles)
@@ -128,7 +171,7 @@ export class UsersService {
         })
         .returning();
 
-      if (!profile) throw AppError.internal('Failed to create user. Please try again.');
+      if (!profile) throw new InternalServerErrorException('Failed to create user. Please try again.');
 
       return { ...user, ...profile };
     });
@@ -180,7 +223,7 @@ export class UsersService {
       actorRole !== 'SUPER_ADMIN' &&
       ROLE_HIERARCHY[targetRole] >= ROLE_HIERARCHY[actorRole]
     ) {
-      throw AppError.forbidden('You do not have permission to manage users with this role.');
+      throw new ForbiddenException('You do not have permission to manage users with this role.');
     }
   }
 

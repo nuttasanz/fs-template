@@ -10,6 +10,7 @@ import { createHash } from 'crypto';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../../database/database.provider';
 import { sessions, users } from '../../database/schema';
+import { COOKIE_NAME } from '../constants/session.constants';
 
 @Injectable()
 export class SessionGuard implements CanActivate {
@@ -17,7 +18,7 @@ export class SessionGuard implements CanActivate {
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const request = ctx.switchToHttp().getRequest<Request>();
-    const rawToken: string | undefined = request.cookies['sid'];
+    const rawToken: string | undefined = request.cookies[COOKIE_NAME];
 
     if (!rawToken) {
       throw new UnauthorizedException('No session token provided.');

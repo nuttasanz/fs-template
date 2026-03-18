@@ -16,6 +16,7 @@ import type { Request, Response } from 'express';
 import { LoginDTOSchema, type LoginDTO, type SessionDTO, type UserDTO } from '@repo/schemas';
 import { AuthService } from './auth.service';
 import { SessionGuard } from '../common/guards/session.guard';
+import { COOKIE_NAME } from '../common/constants/session.constants';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -58,7 +59,7 @@ export class AuthController {
   @ApiResponse({ status: 204, description: 'Logged out successfully.' })
   @ApiResponse({ status: 401, description: 'Not authenticated.' })
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
-    const rawToken: string | undefined = req.cookies['sid'];
+    const rawToken: string | undefined = req.cookies[COOKIE_NAME];
     if (!rawToken) throw new UnauthorizedException();
     await this.authService.logout(rawToken, res);
   }

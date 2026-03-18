@@ -11,6 +11,9 @@ const AppConfigSchema = z.object({
   ALLOWED_ORIGINS: z.string().min(1, 'ALLOWED_ORIGINS is required'),
   PORT:            z.coerce.number().int().positive().default(3001),
   NODE_ENV:        z.enum(['development', 'production', 'test']).default('development'),
+  SESSION_TTL_DAYS:     z.coerce.number().int().positive().default(7),
+  USERS_PAGE_LIMIT:     z.coerce.number().int().positive().default(20),
+  USERS_PAGE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;

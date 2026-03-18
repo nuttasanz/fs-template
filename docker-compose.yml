@@ -46,7 +46,7 @@ services:
       INTERNAL_API_URL: http://api:3001
       NODE_ENV: production
     ports:
-      - "3000:3000"
+      - "2345:2345"
     depends_on:
       - api
     networks:

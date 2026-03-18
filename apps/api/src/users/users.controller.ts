@@ -48,22 +48,23 @@ export class UsersController {
 
   @Get()
   @ResponseMessage('Users retrieved.')
-  @ApiOperation({ summary: 'List users with pagination and optional filters' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiOperation({ summary: 'List users with cursor-based pagination and optional filters' })
+  @ApiQuery({ name: 'cursor', required: false, type: String, description: 'Opaque pagination cursor from previous response' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiQuery({ name: 'role', required: false, enum: ['SUPER_ADMIN', 'ADMIN', 'USER'] })
   @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'] })
-  @ApiResponse({ status: 200, description: 'Paginated list of users.' })
+  @ApiResponse({ status: 200, description: 'Cursor-paginated list of users.' })
+  @ApiResponse({ status: 400, description: 'Invalid pagination cursor.' })
   @ApiResponse({ status: 401, description: 'Not authenticated.' })
   @ApiResponse({ status: 403, description: 'Insufficient role.' })
   findAll(
-    @Query('page') page?: string,
+    @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('role') role?: string,
     @Query('status') status?: string,
   ): Promise<PaginatedUsers> {
     const query: FindUsersQuery = {
-      page: page ? parseInt(page, 10) : undefined,
+      cursor,
       limit: limit ? parseInt(limit, 10) : undefined,
       role: role ? UserRoleSchema.optional().parse(role) : undefined,
       status: status ? UserStatusSchema.optional().parse(status) : undefined,

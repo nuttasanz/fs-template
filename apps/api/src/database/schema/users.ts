@@ -19,5 +19,6 @@ export const users = pgTable(
   (table) => [
     index('users_role_idx').on(table.role),
     index('users_deleted_at_idx').on(table.deletedAt),
+    index('users_cursor_idx').on(table.createdAt.desc(), table.id.desc()),
   ],
 );

@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 jest.mock('bcrypt');
@@ -11,6 +12,8 @@ const mockBcryptCompare = bcrypt.compare as jest.Mock;
 function makeRes() {
   return { cookie: jest.fn(), clearCookie: jest.fn() };
 }
+
+const mockConfig = { NODE_ENV: 'test', SESSION_TTL_DAYS: 7 };
 
 const USER_RECORD = {
   id: 'u1',
@@ -51,7 +54,7 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any);
+    const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await service.login({ email: 'alice@example.com', password: 'pw' }, res as any);
@@ -60,7 +63,7 @@ describe('AuthService — login', () => {
     expect(res.cookie).toHaveBeenCalledWith(
       'sid',
       expect.any(String),
-      expect.objectContaining({ httpOnly: true, sameSite: 'lax' }),
+      expect.objectContaining({ httpOnly: true, sameSite: 'strict' }),
     );
   });
 
@@ -84,7 +87,7 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any);
+    const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await service.login({ email: 'alice@example.com', password: 'pw' }, res as any);
@@ -96,7 +99,7 @@ describe('AuthService — login', () => {
     expect(storedToken).toHaveLength(64); // SHA-256 produces a 64-char hex string
   });
 
-  it('throws AppError(401) when no user matches the email', async () => {
+  it('throws UnauthorizedException when no user matches the email', async () => {
     const db = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -108,15 +111,13 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any);
+    const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(service.login({ email: 'ghost@x.com', password: 'pw' }, res as any)).rejects.toMatchObject({
-      statusCode: 401,
-    });
+    await expect(service.login({ email: 'ghost@x.com', password: 'pw' }, res as any)).rejects.toThrow(UnauthorizedException);
   });
 
-  it('throws AppError(401) when the password does not match', async () => {
+  it('throws UnauthorizedException when the password does not match', async () => {
     mockBcryptCompare.mockResolvedValue(false);
 
     const db = {
@@ -130,15 +131,13 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any);
+    const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(service.login({ email: 'alice@example.com', password: 'wrong' }, res as any)).rejects.toMatchObject({
-      statusCode: 401,
-    });
+    await expect(service.login({ email: 'alice@example.com', password: 'wrong' }, res as any)).rejects.toThrow(UnauthorizedException);
   });
 
-  it('throws AppError(401) for a soft-deleted user (deletedAt filter applied at DB level)', async () => {
+  it('throws UnauthorizedException for a soft-deleted user (deletedAt filter applied at DB level)', async () => {
     // The query filters `isNull(users.deletedAt)`, so deleted users return an empty array.
     const db = {
       select: jest.fn().mockReturnValue({
@@ -151,12 +150,10 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any);
+    const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(service.login({ email: 'alice@example.com', password: 'pw' }, res as any)).rejects.toMatchObject({
-      statusCode: 401,
-    });
+    await expect(service.login({ email: 'alice@example.com', password: 'pw' }, res as any)).rejects.toThrow(UnauthorizedException);
   });
 });
 
@@ -172,7 +169,7 @@ describe('AuthService — logout', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any);
+    const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await service.logout('raw-token-value', res as any);
@@ -215,7 +212,7 @@ describe('AuthService — getMe', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any);
+    const service = new AuthService(db as any, mockConfig as any);
     const result = await service.getMe(SESSION_USER);
 
     expect(result).toMatchObject({
@@ -226,7 +223,7 @@ describe('AuthService — getMe', () => {
     expect(result.createdAt).toBe('2024-01-01T00:00:00.000Z');
   });
 
-  it('throws AppError(404) when the user no longer exists or has been soft-deleted', async () => {
+  it('throws NotFoundException when the user no longer exists or has been soft-deleted', async () => {
     const db = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -240,7 +237,7 @@ describe('AuthService — getMe', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any);
-    await expect(service.getMe(SESSION_USER)).rejects.toMatchObject({ statusCode: 404 });
+    const service = new AuthService(db as any, mockConfig as any);
+    await expect(service.getMe(SESSION_USER)).rejects.toThrow(NotFoundException);
   });
 });
