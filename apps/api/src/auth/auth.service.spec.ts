@@ -1,6 +1,5 @@
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
-import { AppError } from '../common/exceptions/app-error';
 
 jest.mock('bcrypt');
 const mockBcryptCompare = bcrypt.compare as jest.Mock;
