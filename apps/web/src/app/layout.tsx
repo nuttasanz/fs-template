@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html>
+    <html lang="en" data-mantine-color-scheme="light">
       <head>
         <ColorSchemeScript />
       </head>
