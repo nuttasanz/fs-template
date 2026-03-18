@@ -23,8 +23,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as Partial<ErrorResponse>;
-    throw new ApiError(res.status, body.message ?? 'Request failed', body.code, body.errors);
+    const isJson = res.headers.get('content-type')?.includes('application/json') ?? false;
+    const body = isJson ? ((await res.json().catch(() => ({}))) as Partial<ErrorResponse>) : {};
+    throw new ApiError(
+      res.status,
+      body.message ?? res.statusText ?? 'Request failed',
+      body.code,
+      body.errors,
+    );
   }
 
   if (res.status === 204) return undefined as T;
