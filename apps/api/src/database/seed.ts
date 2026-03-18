@@ -21,7 +21,7 @@ async function seed(): Promise<void> {
   const db = drizzle(pool, { schema });
 
   const email = process.env['SEED_EMAIL'] ?? 'admin@example.com';
-  const password = process.env['SEED_PASSWORD'] ?? 'ChangeMe123!@#';
+  const password = process.env['SEED_PASSWORD'] ?? 'P@ssw0rd';
   const firstName = process.env['SEED_FIRST_NAME'] ?? 'System';
   const lastName = process.env['SEED_LAST_NAME'] ?? 'Admin';
 
