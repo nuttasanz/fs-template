@@ -6,6 +6,7 @@ config({ path: resolve(__dirname, '../../../.env') });
 
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { VersioningType } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
@@ -17,8 +18,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap(): Promise<void> {
   // bufferLogs: true holds NestJS bootstrap messages in memory until app.useLogger()
   // is called, so all output is flushed through pino instead of the default logger.
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger)); // redirect all NestJS logs through pino
+  app.set('trust proxy', 1); // trust first hop (LB) — req.ip = real client IP from X-Forwarded-For
 
   // ── Security Headers ─────────────────────────────────────────────────────
   app.use(helmet()); // must be first — sets X-Content-Type-Options, CSP, X-Frame-Options, etc.

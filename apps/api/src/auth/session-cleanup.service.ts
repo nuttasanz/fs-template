@@ -1,20 +1,30 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { lt } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
-import { sessions } from '../database/schema';
 
 @Injectable()
 export class SessionCleanupService {
   private readonly logger = new Logger(SessionCleanupService.name);
+  private readonly BATCH_SIZE = 1000;
 
   constructor(@Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async purgeExpiredSessions(): Promise<void> {
-    await this.db
-      .delete(sessions)
-      .where(lt(sessions.expiresAt, new Date()));
-    this.logger.log('Purged expired sessions.');
+    let total = 0;
+    let deleted: number;
+
+    do {
+      const result = await this.db.execute(
+        sql`DELETE FROM sessions WHERE id IN (
+          SELECT id FROM sessions WHERE expires_at < NOW() LIMIT ${this.BATCH_SIZE}
+        )`,
+      );
+      deleted = result.rowCount ?? 0;
+      total += deleted;
+    } while (deleted > 0);
+
+    this.logger.log(`Purged ${total} expired sessions.`);
   }
 }
