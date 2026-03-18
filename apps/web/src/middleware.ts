@@ -5,8 +5,7 @@ export function middleware(request: NextRequest): NextResponse {
   const sid = request.cookies.get('sid');
   const { pathname } = request.nextUrl;
 
-  const isDashboardRoute =
-    pathname.startsWith('/dashboard') || pathname.startsWith('/users');
+  const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/users');
 
   if (isDashboardRoute && !sid) {
     const loginUrl = request.nextUrl.clone();

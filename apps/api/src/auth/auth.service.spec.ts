@@ -114,7 +114,9 @@ describe('AuthService — login', () => {
     const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(service.login({ email: 'ghost@x.com', password: 'pw' }, res as any)).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.login({ email: 'ghost@x.com', password: 'pw' }, res as any),
+    ).rejects.toThrow(UnauthorizedException);
   });
 
   it('throws UnauthorizedException when the password does not match', async () => {
@@ -134,7 +136,9 @@ describe('AuthService — login', () => {
     const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(service.login({ email: 'alice@example.com', password: 'wrong' }, res as any)).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.login({ email: 'alice@example.com', password: 'wrong' }, res as any),
+    ).rejects.toThrow(UnauthorizedException);
   });
 
   it('throws UnauthorizedException for a soft-deleted user (deletedAt filter applied at DB level)', async () => {
@@ -153,7 +157,9 @@ describe('AuthService — login', () => {
     const service = new AuthService(db as any, mockConfig as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(service.login({ email: 'alice@example.com', password: 'pw' }, res as any)).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.login({ email: 'alice@example.com', password: 'pw' }, res as any),
+    ).rejects.toThrow(UnauthorizedException);
   });
 });
 

@@ -6,13 +6,13 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 const AppConfigSchema = z.object({
-  DATABASE_URL:    z.string().min(1, 'DATABASE_URL is required'),
-  SESSION_SECRET:  z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   ALLOWED_ORIGINS: z.string().min(1, 'ALLOWED_ORIGINS is required'),
-  PORT:            z.coerce.number().int().positive().default(3001),
-  NODE_ENV:        z.enum(['development', 'production', 'test']).default('development'),
-  SESSION_TTL_DAYS:     z.coerce.number().int().positive().default(7),
-  USERS_PAGE_LIMIT:     z.coerce.number().int().positive().default(20),
+  PORT: z.coerce.number().int().positive().default(3001),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  SESSION_TTL_DAYS: z.coerce.number().int().positive().default(7),
+  USERS_PAGE_LIMIT: z.coerce.number().int().positive().default(20),
   USERS_PAGE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
 });
 

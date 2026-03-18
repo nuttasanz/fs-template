@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // LoginDTO — credentials submitted to the login endpoint
@@ -26,20 +26,14 @@ export type LoginDTO = z.infer<typeof LoginDTOSchema>;
 // ---------------------------------------------------------------------------
 
 export const SessionDTOSchema = z.object({
-  id: z
-    .string()
-    .uuid()
-    .describe("The unique identifier of the session (UUID v4)."),
-  userId: z
-    .string()
-    .uuid()
-    .describe("The UUID of the user this session belongs to."),
+  id: z.string().uuid().describe('The unique identifier of the session (UUID v4).'),
+  userId: z.string().uuid().describe('The UUID of the user this session belongs to.'),
   expiresAt: z
     .string()
     .datetime()
     .describe(
-      "ISO 8601 timestamp indicating when this session expires. " +
-        "Clients should re-authenticate before this time."
+      'ISO 8601 timestamp indicating when this session expires. ' +
+        'Clients should re-authenticate before this time.',
     ),
 });
 

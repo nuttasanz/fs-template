@@ -9,7 +9,10 @@ import type { UserRole } from '@repo/schemas';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeContext(user: { role: UserRole } | null, requiredRoles: UserRole[] | null): ExecutionContext {
+function makeContext(
+  user: { role: UserRole } | null,
+  requiredRoles: UserRole[] | null,
+): ExecutionContext {
   const reflector = new Reflector();
   jest
     .spyOn(reflector, 'getAllAndOverride')

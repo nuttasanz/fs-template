@@ -46,9 +46,7 @@ export function UserFormModal({ mode, user, actor, opened, onClose }: Props) {
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
 
-  const roleOptions = actor
-    ? assignableRoles(actor.role).map((r) => ({ value: r, label: r }))
-    : [];
+  const roleOptions = actor ? assignableRoles(actor.role).map((r) => ({ value: r, label: r })) : [];
 
   const createForm = useForm<CreateUserDTO>({
     validate: zodResolver(CreateUserDTOSchema),
@@ -117,12 +115,7 @@ export function UserFormModal({ mode, user, actor, opened, onClose }: Props) {
   const isPending = isEdit ? updateUser.isPending : createUser.isPending;
 
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title={isEdit ? 'Edit User' : 'Create User'}
-      size="md"
-    >
+    <Modal opened={opened} onClose={onClose} title={isEdit ? 'Edit User' : 'Create User'} size="md">
       {isEdit ? (
         <form onSubmit={editForm.onSubmit(handleEdit)}>
           <Stack>
@@ -146,11 +139,7 @@ export function UserFormModal({ mode, user, actor, opened, onClose }: Props) {
           <Stack>
             <TextInput label="First Name" {...createForm.getInputProps('firstName')} />
             <TextInput label="Last Name" {...createForm.getInputProps('lastName')} />
-            <TextInput
-              label="Email"
-              type="email"
-              {...createForm.getInputProps('email')}
-            />
+            <TextInput label="Email" type="email" {...createForm.getInputProps('email')} />
             <PasswordInput
               label="Password"
               description="Minimum 12 characters."

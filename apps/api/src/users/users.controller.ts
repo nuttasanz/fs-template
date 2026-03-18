@@ -49,7 +49,12 @@ export class UsersController {
   @Get()
   @ResponseMessage('Users retrieved.')
   @ApiOperation({ summary: 'List users with cursor-based pagination and optional filters' })
-  @ApiQuery({ name: 'cursor', required: false, type: String, description: 'Opaque pagination cursor from previous response' })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Opaque pagination cursor from previous response',
+  })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiQuery({ name: 'role', required: false, enum: ['SUPER_ADMIN', 'ADMIN', 'USER'] })
   @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'] })
@@ -139,10 +144,7 @@ export class UsersController {
   @ApiResponse({ status: 204, description: 'User deleted (soft).' })
   @ApiResponse({ status: 403, description: 'Cannot delete a user with a role >= your own.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  remove(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() actor: SessionUser,
-  ): Promise<void> {
+  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: SessionUser): Promise<void> {
     return this.usersService.remove(id, actor);
   }
 }

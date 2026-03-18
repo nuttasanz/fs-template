@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, StreamableFile } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  StreamableFile,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Observable } from 'rxjs';
 import { map } from 'rxjs';
@@ -27,7 +33,11 @@ export class TransformInterceptor<T> implements NestInterceptor<T, BaseResponse<
 
         // Terminus health-check responses ({ status, info, error, details }) must
         // pass through unwrapped so their HTTP status (200 / 503) is preserved.
-        if (typeof data === 'object' && 'status' in (data as object) && 'details' in (data as object))
+        if (
+          typeof data === 'object' &&
+          'status' in (data as object) &&
+          'details' in (data as object)
+        )
           return data as unknown as BaseResponse<T>;
 
         const message =

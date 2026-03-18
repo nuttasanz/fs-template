@@ -36,20 +36,10 @@ export default function UsersPage() {
         )}
       </Group>
 
-      <UserTable
-        page={page}
-        limit={limit}
-        actor={actor}
-        onPageChange={handlePageChange}
-      />
+      <UserTable page={page} limit={limit} actor={actor} onPageChange={handlePageChange} />
 
       {canCreateUsers && (
-        <UserFormModal
-          mode="create"
-          actor={actor}
-          opened={createOpened}
-          onClose={closeCreate}
-        />
+        <UserFormModal mode="create" actor={actor} opened={createOpened} onClose={closeCreate} />
       )}
     </>
   );

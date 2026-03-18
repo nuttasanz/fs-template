@@ -14,20 +14,21 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 @Module({
   imports: [
-    ConfigModule,                                                                          // first — validates env before any other module's useFactory runs
+    ConfigModule, // first — validates env before any other module's useFactory runs
     LoggerModule.forRoot({
       pinoHttp: {
         // Re-use the ID stamped by RequestIdMiddleware so every log line carries the same ID.
         genReqId: (req) => req.headers['x-request-id'] as string,
         // Pretty output for local development; plain JSON in production (parsed by log aggregators).
-        transport: process.env['NODE_ENV'] !== 'production'
-          ? { target: 'pino-pretty', options: { colorize: true, singleLine: true } }
-          : undefined,
+        transport:
+          process.env['NODE_ENV'] !== 'production'
+            ? { target: 'pino-pretty', options: { colorize: true, singleLine: true } }
+            : undefined,
         autoLogging: true,
       },
     }),
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{ name: 'global', ttl: 15 * 60 * 1000, limit: 100 }]),      // 100 req / 15 min globally
+    ThrottlerModule.forRoot([{ name: 'global', ttl: 15 * 60 * 1000, limit: 100 }]), // 100 req / 15 min globally
     DatabaseModule,
     AuthModule,
     UsersModule,
@@ -35,7 +36,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
   ],
   providers: [
     // Rate limiting — registered via APP_GUARD to enable DI and @Throttle() / @SkipThrottle() decorators.
-    { provide: APP_GUARD,       useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Wrap all successful responses in { success: true, message, data }.
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
     // Apply audit logging globally to all mutation endpoints.

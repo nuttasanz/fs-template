@@ -9,13 +9,7 @@ import {
 } from '@nestjs/common';
 import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
-import type {
-  CreateUserDTO,
-  UpdateUserDTO,
-  UserDTO,
-  UserRole,
-  UserStatus,
-} from '@repo/schemas';
+import type { CreateUserDTO, UpdateUserDTO, UserDTO, UserRole, UserStatus } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { profiles, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
@@ -52,9 +46,10 @@ export class UsersService {
     let cursorId: string | undefined;
     if (query.cursor) {
       try {
-        const decoded = JSON.parse(
-          Buffer.from(query.cursor, 'base64url').toString('utf-8'),
-        ) as { createdAt: string; id: string };
+        const decoded = JSON.parse(Buffer.from(query.cursor, 'base64url').toString('utf-8')) as {
+          createdAt: string;
+          id: string;
+        };
         cursorDate = new Date(decoded.createdAt);
         cursorId = decoded.id;
         if (isNaN(cursorDate.getTime()) || !cursorId) throw new Error();
@@ -171,7 +166,8 @@ export class UsersService {
         })
         .returning();
 
-      if (!profile) throw new InternalServerErrorException('Failed to create user. Please try again.');
+      if (!profile)
+        throw new InternalServerErrorException('Failed to create user. Please try again.');
 
       return { ...user, ...profile };
     });
@@ -219,10 +215,7 @@ export class UsersService {
    * Satisfies: "ADMIN CANNOT Create/Update/Delete other ADMIN or SUPER_ADMIN roles."
    */
   private enforceRbac(actorRole: UserRole, targetRole: UserRole): void {
-    if (
-      actorRole !== 'SUPER_ADMIN' &&
-      ROLE_HIERARCHY[targetRole] >= ROLE_HIERARCHY[actorRole]
-    ) {
+    if (actorRole !== 'SUPER_ADMIN' && ROLE_HIERARCHY[targetRole] >= ROLE_HIERARCHY[actorRole]) {
       throw new ForbiddenException('You do not have permission to manage users with this role.');
     }
   }

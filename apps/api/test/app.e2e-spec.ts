@@ -92,25 +92,41 @@ describe('App — E2E Integration', () => {
       .values({ email: ADMIN_EMAIL, passwordHash: adminHash, role: 'ADMIN', status: 'ACTIVE' })
       .returning({ id: schema.users.id });
     adminUserId = adminUser!.id;
-    await db.insert(schema.profiles).values({ userId: adminUserId, firstName: 'E2E', lastName: 'Admin' });
+    await db
+      .insert(schema.profiles)
+      .values({ userId: adminUserId, firstName: 'E2E', lastName: 'Admin' });
 
     // ── Seed ADMIN target (used in RBAC-403 test) ─────────────────────────
     const adminTargetHash = await bcrypt.hash(ADMIN_TARGET_PASSWORD, 12);
     const [adminTarget] = await db
       .insert(schema.users)
-      .values({ email: ADMIN_TARGET_EMAIL, passwordHash: adminTargetHash, role: 'ADMIN', status: 'ACTIVE' })
+      .values({
+        email: ADMIN_TARGET_EMAIL,
+        passwordHash: adminTargetHash,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+      })
       .returning({ id: schema.users.id });
     adminTargetId = adminTarget!.id;
-    await db.insert(schema.profiles).values({ userId: adminTargetId, firstName: 'E2E', lastName: 'AdminTarget' });
+    await db
+      .insert(schema.profiles)
+      .values({ userId: adminTargetId, firstName: 'E2E', lastName: 'AdminTarget' });
 
     // ── Seed USER target (used in soft-delete test) ───────────────────────
     const userTargetHash = await bcrypt.hash(USER_TARGET_PASSWORD, 12);
     const [userTarget] = await db
       .insert(schema.users)
-      .values({ email: USER_TARGET_EMAIL, passwordHash: userTargetHash, role: 'USER', status: 'ACTIVE' })
+      .values({
+        email: USER_TARGET_EMAIL,
+        passwordHash: userTargetHash,
+        role: 'USER',
+        status: 'ACTIVE',
+      })
       .returning({ id: schema.users.id });
     userTargetId = userTarget!.id;
-    await db.insert(schema.profiles).values({ userId: userTargetId, firstName: 'E2E', lastName: 'UserTarget' });
+    await db
+      .insert(schema.profiles)
+      .values({ userId: userTargetId, firstName: 'E2E', lastName: 'UserTarget' });
 
     // ── Bootstrap NestJS app (mirrors main.ts global config) ─────────────
     const module: TestingModule = await Test.createTestingModule({
@@ -131,7 +147,11 @@ describe('App — E2E Integration', () => {
       .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
 
     const setCookieHeader = loginRes.headers['set-cookie'] as string | string[] | undefined;
-    const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : setCookieHeader ? [setCookieHeader] : [];
+    const cookies = Array.isArray(setCookieHeader)
+      ? setCookieHeader
+      : setCookieHeader
+        ? [setCookieHeader]
+        : [];
     adminSid = cookies.find((c) => c.startsWith('sid=')) ?? '';
     expect(adminSid).toBeTruthy(); // fail fast if login is broken
   });
@@ -171,7 +191,11 @@ describe('App — E2E Integration', () => {
     expect(res.body.data).toMatchObject({ userId: adminUserId });
 
     const setCookieHeader = res.headers['set-cookie'] as string | string[] | undefined;
-    const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : setCookieHeader ? [setCookieHeader] : [];
+    const cookies = Array.isArray(setCookieHeader)
+      ? setCookieHeader
+      : setCookieHeader
+        ? [setCookieHeader]
+        : [];
     const sidCookie = cookies.find((c) => c.startsWith('sid='));
     expect(sidCookie).toMatch(/HttpOnly/i);
     expect(sidCookie).toMatch(/SameSite=Lax/i);
@@ -182,9 +206,7 @@ describe('App — E2E Integration', () => {
   // ---------------------------------------------------------------------------
 
   it('GET /auth/me with valid session returns 200 and a correctly-shaped UserDTO', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/api/v1/auth/me')
-      .set('Cookie', adminSid);
+    const res = await request(app.getHttpServer()).get('/api/v1/auth/me').set('Cookie', adminSid);
 
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({
@@ -238,12 +260,7 @@ describe('App — E2E Integration', () => {
     const logs = await db
       .select({ action: schema.auditLogs.action })
       .from(schema.auditLogs)
-      .where(
-        and(
-          eq(schema.auditLogs.actorId, adminUserId),
-          eq(schema.auditLogs.action, 'CREATE'),
-        ),
-      );
+      .where(and(eq(schema.auditLogs.actorId, adminUserId), eq(schema.auditLogs.action, 'CREATE')));
 
     expect(logs.length).toBeGreaterThan(0);
     expect(logs[0]!.action).toBe('CREATE');
@@ -301,7 +318,11 @@ describe('App — E2E Integration', () => {
       .post('/api/v1/auth/login')
       .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
     const setCookieHeader = loginRes.headers['set-cookie'] as string | string[] | undefined;
-    const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : setCookieHeader ? [setCookieHeader] : [];
+    const cookies = Array.isArray(setCookieHeader)
+      ? setCookieHeader
+      : setCookieHeader
+        ? [setCookieHeader]
+        : [];
     const freshSid = cookies.find((c) => c.startsWith('sid=')) ?? '';
 
     const logoutRes = await request(app.getHttpServer())
@@ -309,9 +330,7 @@ describe('App — E2E Integration', () => {
       .set('Cookie', freshSid);
     expect(logoutRes.status).toBe(204);
 
-    const meRes = await request(app.getHttpServer())
-      .get('/api/v1/auth/me')
-      .set('Cookie', freshSid);
+    const meRes = await request(app.getHttpServer()).get('/api/v1/auth/me').set('Cookie', freshSid);
     expect(meRes.status).toBe(401);
   });
 

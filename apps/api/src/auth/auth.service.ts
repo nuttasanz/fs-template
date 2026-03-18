@@ -1,4 +1,10 @@
-import { Inject, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { randomBytes, createHash } from 'crypto';
 import { and, eq, isNull, lt } from 'drizzle-orm';
@@ -44,7 +50,8 @@ export class AuthService {
       .values({ userId: user.id, token: tokenHash, expiresAt })
       .returning();
 
-    if (!session) throw new InternalServerErrorException('Failed to create session. Please try again.');
+    if (!session)
+      throw new InternalServerErrorException('Failed to create session. Please try again.');
 
     // CSRF protection strategy:
     // 1. SameSite=Strict — the browser will not attach 'sid' to any cross-site

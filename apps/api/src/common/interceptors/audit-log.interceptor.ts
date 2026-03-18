@@ -1,10 +1,4 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Inject,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } from '@nestjs/common';
 import type { Request } from 'express';
 import { Observable, tap } from 'rxjs';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../../database/database.provider';

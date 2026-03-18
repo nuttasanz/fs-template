@@ -9,7 +9,11 @@ const mockConfig = { USERS_PAGE_LIMIT: 20, USERS_PAGE_LIMIT_MAX: 100 };
 // Helpers
 // ---------------------------------------------------------------------------
 
-const SUPER_ADMIN_ACTOR: SessionUser = { id: 'actor', email: 'admin@test.com', role: 'SUPER_ADMIN' };
+const SUPER_ADMIN_ACTOR: SessionUser = {
+  id: 'actor',
+  email: 'admin@test.com',
+  role: 'SUPER_ADMIN',
+};
 const ADMIN_ACTOR: SessionUser = { id: 'actor', email: 'admin@test.com', role: 'ADMIN' };
 
 function makeUserRow(overrides: Record<string, unknown> = {}) {
@@ -50,7 +54,8 @@ describe('UsersService — RBAC enforcement', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new UsersService({} as any, mockConfig as any);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const enforce = (actorRole: string, targetRole: string) => (service as any).enforceRbac(actorRole, targetRole);
+  const enforce = (actorRole: string, targetRole: string) =>
+    (service as any).enforceRbac(actorRole, targetRole);
 
   it('ADMIN cannot manage another ADMIN', () => {
     expect(() => enforce('ADMIN', 'ADMIN')).toThrow(ForbiddenException);
@@ -113,7 +118,10 @@ describe('UsersService — findAll', () => {
   it('returns a non-null nextCursor when there are more pages', async () => {
     // Build limit+1 = 21 rows to trigger hasMore=true
     const rows = Array.from({ length: 21 }, (_, i) =>
-      makeUserRow({ id: `u${i + 1}`, createdAt: new Date(`2024-01-${String(i + 1).padStart(2, '0')}`) }),
+      makeUserRow({
+        id: `u${i + 1}`,
+        createdAt: new Date(`2024-01-${String(i + 1).padStart(2, '0')}`),
+      }),
     );
 
     const db = {
@@ -138,9 +146,10 @@ describe('UsersService — findAll', () => {
     expect(result.nextCursor).not.toBeNull();
 
     // Cursor must decode to a valid { createdAt, id } object
-    const decoded = JSON.parse(
-      Buffer.from(result.nextCursor!, 'base64url').toString('utf-8'),
-    ) as { createdAt: string; id: string };
+    const decoded = JSON.parse(Buffer.from(result.nextCursor!, 'base64url').toString('utf-8')) as {
+      createdAt: string;
+      id: string;
+    };
     expect(decoded.id).toBe('u20');
     expect(new Date(decoded.createdAt).getTime()).not.toBeNaN();
   });
@@ -209,8 +218,16 @@ describe('UsersService — create', () => {
 
     const txInsert = jest
       .fn()
-      .mockReturnValueOnce({ values: jest.fn().mockReturnValue({ returning: jest.fn().mockResolvedValue([insertedUser]) }) })
-      .mockReturnValueOnce({ values: jest.fn().mockReturnValue({ returning: jest.fn().mockResolvedValue([insertedProfile]) }) });
+      .mockReturnValueOnce({
+        values: jest
+          .fn()
+          .mockReturnValue({ returning: jest.fn().mockResolvedValue([insertedUser]) }),
+      })
+      .mockReturnValueOnce({
+        values: jest
+          .fn()
+          .mockReturnValue({ returning: jest.fn().mockResolvedValue([insertedProfile]) }),
+      });
 
     const db = {
       // email uniqueness check — no existing user
@@ -222,12 +239,20 @@ describe('UsersService — create', () => {
         }),
       }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      transaction: jest.fn().mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ insert: txInsert })),
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ insert: txInsert })),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const dto = { email: 'new@test.com', password: 'pw', role: 'USER' as const, firstName: 'Bob', lastName: 'Jones' };
+    const dto = {
+      email: 'new@test.com',
+      password: 'pw',
+      role: 'USER' as const,
+      firstName: 'Bob',
+      lastName: 'Jones',
+    };
     const result = await service.create(dto, SUPER_ADMIN_ACTOR);
 
     expect(result).toMatchObject({ id: 'u1', email: 'new@test.com' });
@@ -249,14 +274,26 @@ describe('UsersService — create', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const dto = { email: 'dup@test.com', password: 'pw', role: 'USER' as const, firstName: 'X', lastName: 'Y' };
+    const dto = {
+      email: 'dup@test.com',
+      password: 'pw',
+      role: 'USER' as const,
+      firstName: 'X',
+      lastName: 'Y',
+    };
     await expect(service.create(dto, SUPER_ADMIN_ACTOR)).rejects.toThrow(ConflictException);
   });
 
   it('throws ForbiddenException when the actor lacks sufficient role to assign the target role', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService({} as any, mockConfig as any);
-    const dto = { email: 'x@test.com', password: 'pw', role: 'ADMIN' as const, firstName: 'X', lastName: 'Y' };
+    const dto = {
+      email: 'x@test.com',
+      password: 'pw',
+      role: 'ADMIN' as const,
+      firstName: 'X',
+      lastName: 'Y',
+    };
     // ADMIN actor cannot create another ADMIN
     await expect(service.create(dto, ADMIN_ACTOR)).rejects.toThrow(ForbiddenException);
   });
@@ -275,7 +312,9 @@ describe('UsersService — update', () => {
 
     const db = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      transaction: jest.fn().mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ update: txUpdate })),
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ update: txUpdate })),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

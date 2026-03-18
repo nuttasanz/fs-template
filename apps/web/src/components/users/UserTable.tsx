@@ -135,9 +135,7 @@ export function UserTable({ page, limit, actor, onPageChange }: Props) {
                     {user.status}
                   </Badge>
                 </Table.Td>
-                <Table.Td>
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </Table.Td>
+                <Table.Td>{new Date(user.createdAt).toLocaleDateString()}</Table.Td>
                 <Table.Td>
                   {actor && canActorManageTarget(actor.role, user.role) && (
                     <Group gap="xs">

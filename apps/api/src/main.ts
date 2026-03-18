@@ -32,13 +32,18 @@ async function bootstrap(): Promise<void> {
   // Wildcard is rejected: credentials (HttpOnly cookies) require explicit origins.
   const rawOrigins = process.env['ALLOWED_ORIGINS'] ?? '';
   if (rawOrigins === '*') {
-    console.error('[Bootstrap] ALLOWED_ORIGINS cannot be "*" — incompatible with credentials (HttpOnly cookies).');
+    console.error(
+      '[Bootstrap] ALLOWED_ORIGINS cannot be "*" — incompatible with credentials (HttpOnly cookies).',
+    );
     process.exit(1);
   }
-  const origins = rawOrigins.split(',').map((o) => o.trim()).filter(Boolean);
+  const origins = rawOrigins
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   app.enableCors({
     origin: origins,
-    credentials: true,                                           // required for the HttpOnly sid cookie
+    credentials: true, // required for the HttpOnly sid cookie
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Accept', 'X-Request-Id'], // allow callers to supply a trace ID
   });

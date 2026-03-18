@@ -14,17 +14,17 @@ import {
   Stack,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  IconLayoutDashboard,
-  IconUsers,
-  IconLogout,
-  IconChevronDown,
-} from '@tabler/icons-react';
+import { IconLayoutDashboard, IconUsers, IconLogout, IconChevronDown } from '@tabler/icons-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserDTO } from '@repo/schemas';
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard', icon: IconLayoutDashboard, roles: ['USER', 'ADMIN', 'SUPER_ADMIN'] },
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: IconLayoutDashboard,
+    roles: ['USER', 'ADMIN', 'SUPER_ADMIN'],
+  },
   { label: 'Users', href: '/users', icon: IconUsers, roles: ['ADMIN', 'SUPER_ADMIN'] },
 ] as const;
 
@@ -42,8 +42,12 @@ export function AppShellLayout({ user, children }: Props) {
     (item.roles as readonly string[]).includes(user.role),
   );
 
-  const displayName = [user.profile.firstName, user.profile.lastName].filter(Boolean).join(' ') || user.email;
-  const initials = [user.profile.firstName[0], user.profile.lastName[0]].filter(Boolean).join('').toUpperCase();
+  const displayName =
+    [user.profile.firstName, user.profile.lastName].filter(Boolean).join(' ') || user.email;
+  const initials = [user.profile.firstName[0], user.profile.lastName[0]]
+    .filter(Boolean)
+    .join('')
+    .toUpperCase();
 
   return (
     <AppShell

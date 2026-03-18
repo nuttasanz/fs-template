@@ -35,13 +35,19 @@ describe('HttpExceptionFilter', () => {
 
     expect(status).toHaveBeenCalledWith(404);
     expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, code: ErrorCode.NOT_FOUND, message: 'User not found' }),
+      expect.objectContaining({
+        success: false,
+        code: ErrorCode.NOT_FOUND,
+        message: 'User not found',
+      }),
     );
   });
 
   it('includes per-field errors for AppError(400) with errors array', () => {
     const { host, json } = makeHost();
-    const err = AppError.badRequest('Validation failed', [{ field: 'email', message: 'Invalid email' }]);
+    const err = AppError.badRequest('Validation failed', [
+      { field: 'email', message: 'Invalid email' },
+    ]);
     filter.catch(err, host);
 
     expect(json).toHaveBeenCalledWith(

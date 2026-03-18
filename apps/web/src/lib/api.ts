@@ -23,7 +23,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as Partial<ErrorResponse>;
+    const body = (await res.json().catch(() => ({}))) as Partial<ErrorResponse>;
     throw new ApiError(res.status, body.message ?? 'Request failed', body.code, body.errors);
   }
 
@@ -41,5 +41,4 @@ export const apiPost = <T>(path: string, body: unknown): Promise<T> =>
 export const apiPatch = <T>(path: string, body: unknown): Promise<T> =>
   request<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 
-export const apiDelete = (path: string): Promise<void> =>
-  request<void>(path, { method: 'DELETE' });
+export const apiDelete = (path: string): Promise<void> => request<void>(path, { method: 'DELETE' });

@@ -5,14 +5,14 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 export const ErrorCode = {
-  VALIDATION_FAILED:    'VALIDATION_FAILED',
-  AUTH_UNAUTHORIZED:    'AUTH_UNAUTHORIZED',
-  FORBIDDEN:            'FORBIDDEN',
-  NOT_FOUND:            'NOT_FOUND',
-  CONFLICT:             'CONFLICT',
-  BAD_REQUEST:          'BAD_REQUEST',
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
+  AUTH_UNAUTHORIZED: 'AUTH_UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  CONFLICT: 'CONFLICT',
+  BAD_REQUEST: 'BAD_REQUEST',
   UNPROCESSABLE_ENTITY: 'UNPROCESSABLE_ENTITY',
-  INTERNAL_ERROR:       'INTERNAL_ERROR',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -46,7 +46,11 @@ export const ErrorResponseSchema = z.object({
     .array(ErrorFieldSchema)
     .optional()
     .describe('Per-field validation errors. Present only for VALIDATION_ERROR responses.'),
-  timestamp: z.string().datetime().optional().describe('ISO 8601 timestamp of when the error occurred.'),
+  timestamp: z
+    .string()
+    .datetime()
+    .optional()
+    .describe('ISO 8601 timestamp of when the error occurred.'),
   path: z.string().optional().describe('The request path that produced this error.'),
 });
 
