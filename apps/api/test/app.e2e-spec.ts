@@ -46,7 +46,9 @@ type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
 //   beforeAll login:  1  (total: 1)
 //   Scenario 1:       1  (total: 2)
 //   Scenario 3:       1  (total: 3)
-//   Scenario 4 fill:  2  (total: 5) → 6th request → 429
+//   Scenario 8:       1  (total: 4)   ← fresh login for logout test
+//   Scenario 4 fill:  1  (total: 5)   ← passes
+//   Scenario 4 final: 1  (total: 6)   → 429
 // ---------------------------------------------------------------------------
 
 describe('App — E2E Integration', () => {
