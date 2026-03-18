@@ -45,7 +45,7 @@ async function bootstrap(): Promise<void> {
     origin: origins,
     credentials: true, // required for the HttpOnly sid cookie
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Accept', 'X-Request-Id'], // allow callers to supply a trace ID
+    allowedHeaders: ['Content-Type', 'Accept', 'X-Request-Id', 'X-Requested-With'], // allow callers to supply a trace ID
   });
 
   // ── Global Middleware ────────────────────────────────────────────────────

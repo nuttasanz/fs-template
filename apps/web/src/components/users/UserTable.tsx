@@ -62,6 +62,8 @@ export function UserTable({ page, limit, actor, onPageChange }: Props) {
   const [editTarget, setEditTarget] = useState<UserDTO | null>(null);
   const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
 
+  const preloadModal = () => { import('./UserFormModal'); };
+
   const handleEdit = (user: UserDTO) => {
     setEditTarget(user);
     openEdit();
@@ -150,6 +152,8 @@ export function UserTable({ page, limit, actor, onPageChange }: Props) {
                         color="blue"
                         aria-label="Edit user"
                         onClick={() => handleEdit(user)}
+                        onMouseEnter={preloadModal}
+                        onFocus={preloadModal}
                       >
                         <IconEdit size={16} />
                       </ActionIcon>
