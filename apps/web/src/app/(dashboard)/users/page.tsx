@@ -4,9 +4,14 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button, Group, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUserPlus } from '@tabler/icons-react';
+import dynamic from 'next/dynamic';
 import { UserTable } from '@/components/users/UserTable';
-import { UserFormModal } from '@/components/users/UserFormModal';
 import { useAuth } from '@/hooks/useAuth';
+
+const UserFormModal = dynamic(
+  () => import('@/components/users/UserFormModal').then((m) => m.UserFormModal),
+  { ssr: false },
+);
 
 export default function UsersPage() {
   const searchParams = useSearchParams();
@@ -24,13 +29,19 @@ export default function UsersPage() {
   };
 
   const canCreateUsers = actor && actor.role !== 'USER';
+  const preloadModal = () => { import('@/components/users/UserFormModal'); };
 
   return (
     <>
       <Group justify="space-between" mb="md">
         <Title order={2}>Users</Title>
         {canCreateUsers && (
-          <Button leftSection={<IconUserPlus size={16} />} onClick={openCreate}>
+          <Button
+            leftSection={<IconUserPlus size={16} />}
+            onClick={openCreate}
+            onMouseEnter={preloadModal}
+            onFocus={preloadModal}
+          >
             Create User
           </Button>
         )}
