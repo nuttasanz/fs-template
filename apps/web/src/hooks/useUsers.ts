@@ -27,7 +27,7 @@ export function useUsers(params: UseUsersParams) {
 
   return useQuery<PaginatedUsers>({
     queryKey: ['users', params],
-    queryFn: () => apiGet<PaginatedUsers>(`/api/users?${qs.toString()}`),
+    queryFn: () => apiGet<PaginatedUsers>(`/users?${qs.toString()}`),
     placeholderData: (prev) => prev,
   });
 }
@@ -35,7 +35,7 @@ export function useUsers(params: UseUsersParams) {
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (dto: CreateUserDTO) => apiPost<UserDTO>('/api/users', dto),
+    mutationFn: (dto: CreateUserDTO) => apiPost<UserDTO>('/users', dto),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }
@@ -44,7 +44,7 @@ export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateUserDTO }) =>
-      apiPatch<UserDTO>(`/api/users/${id}`, dto),
+      apiPatch<UserDTO>(`/users/${id}`, dto),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }
@@ -52,7 +52,7 @@ export function useUpdateUser() {
 export function useDeleteUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => apiDelete(`/api/users/${id}`),
+    mutationFn: (id: string) => apiDelete(`/users/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   });
 }

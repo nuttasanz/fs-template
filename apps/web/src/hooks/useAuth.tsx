@@ -15,7 +15,7 @@ function useAuthQuery() {
     queryKey: ['me'],
     queryFn: async () => {
       try {
-        return await apiGet<UserDTO>('/api/auth/me');
+        return await apiGet<UserDTO>('/auth/me');
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return null;
         throw e;
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const logout = async (): Promise<void> => {
-    await apiPost('/api/auth/logout', {}).catch(() => {});
+    await apiPost('/auth/logout', {}).catch(() => {});
     queryClient.clear();
     router.replace('/login');
   };

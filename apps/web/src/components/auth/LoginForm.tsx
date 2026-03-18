@@ -19,7 +19,7 @@ export function LoginForm() {
   });
 
   const mutation = useMutation({
-    mutationFn: (values: LoginDTO) => apiPost('/api/auth/login', values),
+    mutationFn: (values: LoginDTO) => apiPost('/auth/login', values),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['me'] });
       router.push('/dashboard');
