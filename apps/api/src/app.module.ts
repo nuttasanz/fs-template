@@ -1,6 +1,7 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
@@ -25,6 +26,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
         autoLogging: true,
       },
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ name: 'global', ttl: 15 * 60 * 1000, limit: 100 }]),      // 100 req / 15 min globally
     DatabaseModule,
     AuthModule,
