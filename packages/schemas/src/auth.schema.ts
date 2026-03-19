@@ -5,10 +5,13 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 export const LoginDTOSchema = z.object({
-  email: z.string().email().describe('The email address associated with the account.'),
+  email: z.string().email('Please enter a valid email address.'),
   password: z
     .string()
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+      'Password must be at least 8 characters and contain uppercase, lowercase, digit, and special character.',
+    )
     .describe(
       'The account password. Only presence is validated here — enforcing ' +
         'complexity rules on the login form would leak the current password ' +
