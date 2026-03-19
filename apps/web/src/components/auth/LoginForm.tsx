@@ -3,41 +3,16 @@
 import { TextInput, PasswordInput, Button, Paper, Title, Stack, Text } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { notifications } from '@mantine/notifications';
 import { LoginDTOSchema, type LoginDTO } from '@repo/schemas';
-import { apiPost, ApiError } from '@/lib/api';
 
 export function LoginForm() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-
   const form = useForm<LoginDTO>({
     validate: zodResolver(LoginDTOSchema),
     initialValues: { email: '', password: '' },
   });
 
-  const mutation = useMutation({
-    mutationFn: (values: LoginDTO) => apiPost('/auth/login', values),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['me'] });
-      router.push('/dashboard');
-    },
-    onError: (error: unknown) => {
-      if (error instanceof ApiError && error.status === 401) {
-        form.setErrors({ email: 'Invalid email or password.' });
-      } else {
-        notifications.show({
-          color: 'red',
-          message: error instanceof ApiError ? error.message : 'An unexpected error occurred.',
-        });
-      }
-    },
-  });
-
   const handleSubmit = form.onSubmit((values) => {
-    mutation.mutate(values);
+    console.log(values);
   });
 
   return (
@@ -61,7 +36,7 @@ export function LoginForm() {
             placeholder="Your password"
             {...form.getInputProps('password')}
           />
-          <Button type="submit" fullWidth mt="md" loading={mutation.isPending}>
+          <Button type="submit" fullWidth mt="md">
             Sign in
           </Button>
         </Stack>
