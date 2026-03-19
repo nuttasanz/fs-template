@@ -25,15 +25,25 @@ services:
       dockerfile: apps/api/Dockerfile
       target: deps
     command: >
-      sh -c "pnpm db:migrate && pnpm dev"
+      sh -c "pnpm --filter @repo/schemas build && pnpm db:migrate && pnpm dev"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-fs_template}
       PORT: 3001
       NODE_ENV: development
+      SESSION_SECRET: ${SESSION_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
     volumes:
       # Bind-mount source only — node_modules stay inside the container
       - ./apps/api/src:/app/apps/api/src
       - ./packages/schemas/src:/app/packages/schemas/src
+      # Config files not copied in the deps stage
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./apps/api/tsconfig.json:/app/apps/api/tsconfig.json:ro
+      - ./apps/api/tsconfig.build.json:/app/apps/api/tsconfig.build.json:ro
+      - ./apps/api/nest-cli.json:/app/apps/api/nest-cli.json:ro
+      - ./apps/api/drizzle.config.ts:/app/apps/api/drizzle.config.ts:ro
+      - ./apps/api/drizzle:/app/apps/api/drizzle:ro
+      - ./packages/schemas/tsconfig.json:/app/packages/schemas/tsconfig.json:ro
     working_dir: /app/apps/api
     develop:
       watch:
@@ -50,7 +60,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       target: deps
-    command: pnpm dev
+    command: sh -c "pnpm --filter @repo/schemas build && pnpm dev"
     environment:
       INTERNAL_API_URL: http://api:3001
       NODE_ENV: development
@@ -60,6 +70,11 @@ services:
     volumes:
       - ./apps/web/src:/app/apps/web/src
       - ./packages/schemas/src:/app/packages/schemas/src
+      # Config files not copied in the deps stage
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./apps/web/tsconfig.json:/app/apps/web/tsconfig.json:ro
+      - ./apps/web/next.config.ts:/app/apps/web/next.config.ts:ro
+      - ./packages/schemas/tsconfig.json:/app/packages/schemas/tsconfig.json:ro
     working_dir: /app/apps/web
     develop:
       watch:
