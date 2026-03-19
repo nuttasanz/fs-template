@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "build": "tsc --project tsconfig.json",
+    "dev": "tsc --project tsconfig.json --watch",
     "type-check": "tsc --project tsconfig.json --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo",
     "lint": "eslint src --ext .ts",
