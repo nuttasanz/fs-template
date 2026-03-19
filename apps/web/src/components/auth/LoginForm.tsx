@@ -36,6 +36,10 @@ export function LoginForm() {
     },
   });
 
+  const handleSubmit = form.onSubmit((values) => {
+    mutation.mutate(values);
+  });
+
   return (
     <Paper withBorder shadow="md" p={30} radius="md">
       <Title order={2} ta="center" mb="xs">
@@ -45,7 +49,7 @@ export function LoginForm() {
         Sign in to your account
       </Text>
 
-      <form onSubmit={form.onSubmit((values) => mutation.mutate(values))}>
+      <form onSubmit={handleSubmit}>
         <Stack>
           <TextInput
             label="Email"
