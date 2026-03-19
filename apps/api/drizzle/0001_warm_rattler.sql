@@ -5,4 +5,4 @@ CREATE INDEX IF NOT EXISTS "sessions_user_id_idx" ON "sessions" USING btree ("us
 CREATE INDEX IF NOT EXISTS "sessions_expires_at_idx" ON "sessions" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "users_role_idx" ON "users" USING btree ("role");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "users_deleted_at_idx" ON "users" USING btree ("deleted_at");--> statement-breakpoint
-CREATE INDEX CONCURRENTLY IF NOT EXISTS "users_cursor_idx" ON "users" USING btree ("created_at" DESC NULLS LAST,"id" DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS "users_cursor_idx" ON "users" USING btree ("created_at" DESC NULLS LAST,"id" DESC NULLS LAST);

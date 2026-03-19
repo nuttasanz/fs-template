@@ -25,9 +25,11 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-fs_template}
       PORT: ${PORT:-3001}
       NODE_ENV: production
+      SESSION_SECRET: ${SESSION_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
     ports:
       - "${PORT:-3001}:3001"
     depends_on:
@@ -45,8 +47,9 @@ services:
       # Routes /api/* rewrites to the 'api' service via Docker bridge networking
       INTERNAL_API_URL: http://api:3001
       NODE_ENV: production
+      PORT: 8080
     ports:
-      - "2345:2345"
+      - "8080:8080"
     depends_on:
       - api
     networks:

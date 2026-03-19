@@ -30,12 +30,13 @@ RUN pnpm --filter @repo/api build
 FROM base AS runner
 ENV NODE_ENV=production
 
-# Re-install deps (no --prod so drizzle-kit is available for startup migrations)
+# Re-install deps — NODE_ENV must be unset so pnpm includes devDependencies,
+# which is required for drizzle-kit (used at startup for migrations).
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 COPY packages/schemas/package.json ./packages/schemas/
-RUN pnpm install --frozen-lockfile
+RUN NODE_ENV= pnpm install --frozen-lockfile
 
 # Compiled output
 COPY --from=builder /app/apps/api/dist ./apps/api/dist

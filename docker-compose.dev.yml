@@ -55,7 +55,7 @@ services:
       INTERNAL_API_URL: http://api:3001
       NODE_ENV: development
     ports:
-      - "2345:2345"
+      - "3000:3000"
     volumes:
       - ./apps/web/src:/app/apps/web/src
       - ./packages/schemas/src:/app/packages/schemas/src
