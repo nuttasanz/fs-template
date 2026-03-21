@@ -2,7 +2,7 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import type { Metadata } from 'next';
 import { ColorSchemeScript } from '@mantine/core';
-import { Providers } from '@/components/providers';
+import { Providers } from '@/features/auth/components/providers';
 
 export const metadata: Metadata = {
   title: 'Admin Backoffice',

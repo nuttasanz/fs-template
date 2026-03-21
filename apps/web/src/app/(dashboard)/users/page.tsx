@@ -1,36 +1,67 @@
+import { Suspense } from 'react';
 import { cookies } from 'next/headers';
-import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
-import type { UserDTO } from '@repo/schemas';
+import type { Metadata } from 'next';
+import { Stack, Title, Skeleton } from '@mantine/core';
+import type { UserDTO, PaginatedMeta } from '@repo/schemas';
 import { apiFetch } from '@/lib/api';
-import { makeQueryClient } from '@/lib/query-client';
-import { userKeys } from '@/features/users/hooks/useUsers';
 import { UsersTable } from '@/features/users/components/UsersTable';
-import { Title, Stack } from '@mantine/core';
 
-const DEFAULT_PARAMS = { cursor: undefined, limit: 20, search: '' };
+export const metadata: Metadata = {
+  title: 'User Management | Admin Backoffice',
+};
 
-export default async function UsersPage() {
+interface UsersPageProps {
+  searchParams: Promise<{ cursor?: string; limit?: string }>;
+}
+
+async function UsersContent({ cursor, limit }: { cursor?: string; limit?: string }) {
   const cookieStore = await cookies();
   const sid = cookieStore.get('sid');
   const cookieHeader = sid ? `sid=${sid.value}` : '';
 
-  const queryClient = makeQueryClient();
-  await queryClient.prefetchQuery({
-    queryKey: userKeys.list(DEFAULT_PARAMS),
-    queryFn: () =>
-      apiFetch<UserDTO[]>(
-        `/api/users?limit=${DEFAULT_PARAMS.limit}`,
-        {},
-        cookieHeader,
-      ),
-  });
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  params.set('limit', limit ?? '20');
+
+  const [usersResponse, meResponse] = await Promise.all([
+    apiFetch<UserDTO[]>(`/api/v1/users?${params.toString()}`, {}, cookieHeader),
+    apiFetch<UserDTO>('/api/v1/auth/me', {}, cookieHeader),
+  ]);
+
+  const users = usersResponse.data ?? [];
+  const meta = (usersResponse.meta ?? { nextCursor: null, limit: 20 }) as PaginatedMeta;
+  const actor = meResponse.data!;
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <Stack gap="lg">
-        <Title order={2}>Users</Title>
-        <UsersTable />
-      </Stack>
-    </HydrationBoundary>
+    <UsersTable
+      users={users}
+      meta={meta}
+      currentCursor={cursor}
+      actor={actor}
+    />
+  );
+}
+
+function UsersTableSkeleton() {
+  return (
+    <Stack gap="xs">
+      <Skeleton height={36} radius="sm" mb="xs" />
+      {Array.from({ length: 8 }).map((_, i) => (
+        <Skeleton key={i} height={52} radius="sm" />
+      ))}
+    </Stack>
+  );
+}
+
+export default async function UsersPage({ searchParams }: UsersPageProps) {
+  const { cursor, limit } = await searchParams;
+
+  return (
+    <Stack gap="lg">
+      <Title order={2}>User Management</Title>
+      <Suspense fallback={<UsersTableSkeleton />}>
+        <UsersContent cursor={cursor} limit={limit} />
+      </Suspense>
+    </Stack>
   );
 }
