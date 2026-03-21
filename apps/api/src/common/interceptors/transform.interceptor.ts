@@ -10,6 +10,7 @@ import type { Observable } from 'rxjs';
 import { map } from 'rxjs';
 import type { BaseResponse } from '@repo/schemas';
 import { RESPONSE_MESSAGE_KEY } from '../decorators/response-message.decorator';
+import { PaginatedResponse } from '../responses/paginated.response';
 
 @Injectable()
 export class TransformInterceptor<T> implements NestInterceptor<T, BaseResponse<T> | undefined> {
@@ -45,6 +46,10 @@ export class TransformInterceptor<T> implements NestInterceptor<T, BaseResponse<
             context.getHandler(),
             context.getClass(),
           ]) ?? 'OK';
+
+        if (data instanceof PaginatedResponse) {
+          return { success: true as const, message, result: data.data, meta: data.meta } as unknown as BaseResponse<T>;
+        }
 
         return { success: true as const, message, data };
       }),

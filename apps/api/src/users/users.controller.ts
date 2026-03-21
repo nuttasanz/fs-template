@@ -29,7 +29,8 @@ import {
   type UpdateUserDTO,
   type UserDTO,
 } from '@repo/schemas';
-import { UsersService, type FindUsersQuery, type PaginatedUsers } from './users.service';
+import { UsersService, type FindUsersQuery } from './users.service';
+import { PaginatedResponse } from '../common/responses/paginated.response';
 import { SessionGuard } from '../common/guards/session.guard';
 import { RbacGuard } from '../common/guards/rbac.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -47,7 +48,6 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @ResponseMessage('Users retrieved.')
   @ApiOperation({ summary: 'List users with cursor-based pagination and optional filters' })
   @ApiQuery({
     name: 'cursor',
@@ -62,19 +62,21 @@ export class UsersController {
   @ApiResponse({ status: 400, description: 'Invalid pagination cursor.' })
   @ApiResponse({ status: 401, description: 'Not authenticated.' })
   @ApiResponse({ status: 403, description: 'Insufficient role.' })
-  findAll(
+  @ResponseMessage('Users retrieved.')
+  async findAll(
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('role') role?: string,
     @Query('status') status?: string,
-  ): Promise<PaginatedUsers> {
+  ): Promise<PaginatedResponse<UserDTO>> {
     const query: FindUsersQuery = {
       cursor,
       limit: limit ? parseInt(limit, 10) : undefined,
       role: role ? UserRoleSchema.optional().parse(role) : undefined,
       status: status ? UserStatusSchema.optional().parse(status) : undefined,
     };
-    return this.usersService.findAll(query);
+    const result = await this.usersService.findAll(query);
+    return new PaginatedResponse(result.data, { nextCursor: result.nextCursor, limit: result.limit });
   }
 
   @Get(':id')
