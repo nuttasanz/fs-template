@@ -32,7 +32,10 @@ interface UsersTableProps {
 const ROLE_ORDER: Record<string, number> = { SUPER_ADMIN: 3, ADMIN: 2, USER: 1 };
 
 function canModify(actor: UserDTO, target: UserDTO): boolean {
-  return ROLE_ORDER[actor.role] > ROLE_ORDER[target.role];
+  if (!actor?.role || !target?.role) return false;
+  const actorLevel = ROLE_ORDER[actor.role] ?? 0;
+  const targetLevel = ROLE_ORDER[target.role] ?? 0;
+  return actorLevel > targetLevel;
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -155,10 +158,7 @@ export function UsersTable({ users, meta, currentCursor, actor }: UsersTableProp
     <>
       <Stack gap="md">
         <Group justify="flex-end">
-          <Button
-            leftSection={<IconUserPlus size={16} />}
-            onClick={() => setCreateOpen(true)}
-          >
+          <Button leftSection={<IconUserPlus size={16} />} onClick={() => setCreateOpen(true)}>
             Create User
           </Button>
         </Group>

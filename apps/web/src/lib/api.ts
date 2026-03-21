@@ -1,5 +1,5 @@
 import 'server-only';
-import type { BaseResponse, ErrorResponse } from '@repo/schemas';
+import type { BaseResponse, ErrorResponse, PaginatedBaseResponse } from '@repo/schemas';
 import { serverEnv } from '@/env.server';
 
 export class ApiError extends Error {
@@ -41,4 +41,31 @@ export async function apiFetch<T>(
   }
 
   return response.json() as Promise<BaseResponse<T>>;
+}
+
+export async function paginatedApiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+  cookieHeader?: string,
+): Promise<PaginatedBaseResponse<T[]>> {
+  const url = `${serverEnv.INTERNAL_API_URL}${path}`;
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    ...(options.headers ?? {}),
+  };
+
+  const response = await fetch(url, { ...options, headers, cache: 'no-store' });
+
+  if (!response.ok) {
+    const errorBody: ErrorResponse = await response.json().catch(() => ({
+      success: false as const,
+      message: `HTTP ${response.status}`,
+      code: 'INTERNAL_ERROR',
+    }));
+    throw new ApiError(response.status, errorBody);
+  }
+
+  return response.json() as Promise<PaginatedBaseResponse<T[]>>;
 }

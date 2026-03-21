@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import type { Metadata } from 'next';
 import { Stack, Title, Skeleton } from '@mantine/core';
 import type { UserDTO, PaginatedMeta } from '@repo/schemas';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, paginatedApiFetch } from '@/lib/api';
 import { UsersTable } from '@/features/users/components/UsersTable';
 
 export const metadata: Metadata = {
@@ -24,22 +24,15 @@ async function UsersContent({ cursor, limit }: { cursor?: string; limit?: string
   params.set('limit', limit ?? '20');
 
   const [usersResponse, meResponse] = await Promise.all([
-    apiFetch<UserDTO[]>(`/api/v1/users?${params.toString()}`, {}, cookieHeader),
+    paginatedApiFetch<UserDTO>(`/api/v1/users?${params.toString()}`, {}, cookieHeader),
     apiFetch<UserDTO>('/api/v1/auth/me', {}, cookieHeader),
   ]);
 
-  const users = usersResponse.data ?? [];
+  const users = usersResponse.result ?? [];
   const meta = (usersResponse.meta ?? { nextCursor: null, limit: 20 }) as PaginatedMeta;
   const actor = meResponse.data!;
 
-  return (
-    <UsersTable
-      users={users}
-      meta={meta}
-      currentCursor={cursor}
-      actor={actor}
-    />
-  );
+  return <UsersTable users={users} meta={meta} currentCursor={cursor} actor={actor} />;
 }
 
 function UsersTableSkeleton() {

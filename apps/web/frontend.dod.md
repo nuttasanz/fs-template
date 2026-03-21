@@ -6,7 +6,7 @@ Build a professional-grade Admin Backoffice system using a Monorepo structure.
 - **UI Library:** Mantine UI (Primary). **Tailwind CSS is RESTRICTED** to macro-layouts only. Do not mix Tailwind classes with Mantine components to prevent style collisions.
 - **Data Fetching Strategy:** Native RSC `fetch` (Read) + Next.js Server Actions (Mutations). 
 - **Client Server-State:** TanStack Query (React Query) is RESTRICTED to complex client-side needs ONLY (e.g., polling, infinite scrolling, real-time sync). Do not use it for basic CRUD.
-- **Form Handling:** Mantine Form + Zod Resolver
+- **Form Handling:** Mantine Form + mantine-form-zod-resolver
 - **Validation:** Zod (Shared between Front/Back via `@repo/schemas` Monorepo workspace)
 - **State Management:** Zustand (Only for global client state, DO NOT use for server state)
 

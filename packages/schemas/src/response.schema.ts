@@ -87,6 +87,30 @@ export type BaseResponse<T, TMeta = unknown> = {
 };
 
 // ---------------------------------------------------------------------------
+// PaginatedBaseResponse<T> — success envelope for paginated list endpoints
+//
+// The TransformInterceptor wraps paginated results under the `result` key
+// (not `data`) to distinguish them from single-entity responses.
+// ---------------------------------------------------------------------------
+
+export const PaginatedBaseResponseSchema = <T>(dataSchema: z.ZodType<T>) =>
+  z.object({
+    success: z.literal(true),
+    message: z.string().describe('A human-readable description of the outcome.'),
+    result: dataSchema
+      .optional()
+      .describe('The paginated result set.'),
+    meta: PaginatedMetaSchema.optional().describe('Pagination metadata.'),
+  });
+
+export type PaginatedBaseResponse<T> = {
+  success: true;
+  message: string;
+  result?: T;
+  meta?: PaginatedMeta;
+};
+
+// ---------------------------------------------------------------------------
 // PaginatedMeta — standard pagination metadata returned alongside list endpoints
 // ---------------------------------------------------------------------------
 
