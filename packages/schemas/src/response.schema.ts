@@ -79,9 +79,20 @@ export const BaseResponseSchema = <T>(dataSchema: z.ZodType<T>) =>
       .describe('Optional envelope metadata (e.g. pagination cursors, totals).'),
   });
 
-export type BaseResponse<T> = {
+export type BaseResponse<T, TMeta = unknown> = {
   success: true;
   message: string;
   data?: T;
-  meta?: unknown;
+  meta?: TMeta;
 };
+
+// ---------------------------------------------------------------------------
+// PaginatedMeta — standard pagination metadata returned alongside list endpoints
+// ---------------------------------------------------------------------------
+
+export const PaginatedMetaSchema = z.object({
+  nextCursor: z.string().nullable().describe('Opaque cursor for the next page. Null if no more pages.'),
+  limit: z.number().int().positive().describe('The page size used for this query.'),
+});
+
+export type PaginatedMeta = z.infer<typeof PaginatedMetaSchema>;

@@ -17,6 +17,7 @@ export {
   ErrorFieldSchema,
   ErrorResponseSchema,
   BaseResponseSchema,
+  PaginatedMetaSchema,
 } from './response.schema';
 
-export type { ErrorField, ErrorResponse, BaseResponse } from './response.schema';
+export type { ErrorField, ErrorResponse, BaseResponse, PaginatedMeta } from './response.schema';
