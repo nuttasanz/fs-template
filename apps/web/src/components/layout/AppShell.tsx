@@ -1,61 +1,73 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import {
-  AppShell,
+  AppShell as MantineAppShell,
   Burger,
   Group,
   NavLink,
-  Text,
   Avatar,
   Menu,
+  Text,
   UnstyledButton,
-  Stack,
+  rem,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconLayoutDashboard, IconUsers, IconLogout, IconChevronDown } from '@tabler/icons-react';
-import { useAuth } from '@/hooks/useAuth';
+import {
+  IconDashboard,
+  IconUsers,
+  IconLogout,
+  IconChevronDown,
+} from '@tabler/icons-react';
 import type { UserDTO } from '@repo/schemas';
+import { logoutAction } from '@/features/auth/actions';
 
-const NAV_ITEMS = [
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: IconLayoutDashboard,
-    roles: ['USER', 'ADMIN', 'SUPER_ADMIN'],
-  },
-  { label: 'Users', href: '/users', icon: IconUsers, roles: ['ADMIN', 'SUPER_ADMIN'] },
-] as const;
-
-interface Props {
+interface AppShellProps {
   user: UserDTO;
   children: React.ReactNode;
 }
 
-export function AppShellLayout({ user, children }: Props) {
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  allowedRoles?: UserDTO['role'][];
+}
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: <IconDashboard size={16} />,
+  },
+  {
+    href: '/users',
+    label: 'Users',
+    icon: <IconUsers size={16} />,
+    allowedRoles: ['ADMIN', 'SUPER_ADMIN'],
+  },
+];
+
+export function AppShell({ user, children }: AppShellProps) {
   const [opened, { toggle }] = useDisclosure();
   const pathname = usePathname();
-  const { logout } = useAuth();
 
-  const visibleNavItems = NAV_ITEMS.filter((item) =>
-    (item.roles as readonly string[]).includes(user.role),
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => !item.allowedRoles || item.allowedRoles.includes(user.role),
   );
 
-  const displayName =
-    [user.profile.firstName, user.profile.lastName].filter(Boolean).join(' ') || user.email;
-  const initials = [user.profile.firstName[0], user.profile.lastName[0]]
-    .filter(Boolean)
-    .join('')
-    .toUpperCase();
+  const displayName = `${user.profile.firstName} ${user.profile.lastName}`;
+  const initials =
+    `${user.profile.firstName[0] ?? ''}${user.profile.lastName[0] ?? ''}`.toUpperCase();
 
   return (
-    <AppShell
+    <MantineAppShell
       header={{ height: 60 }}
-      navbar={{ width: 240, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      navbar={{ width: 220, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="md"
     >
-      <AppShell.Header>
+      <MantineAppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Group>
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
@@ -68,52 +80,50 @@ export function AppShellLayout({ user, children }: Props) {
             <Menu.Target>
               <UnstyledButton>
                 <Group gap="xs">
-                  <Avatar size="sm" radius="xl" color="blue">
-                    {initials || '?'}
+                  <Avatar size="sm" color="blue" radius="xl">
+                    {initials}
                   </Avatar>
-                  <Stack gap={0} visibleFrom="sm">
-                    <Text size="sm" fw={500} lh={1.2}>
-                      {displayName}
-                    </Text>
-                    <Text size="xs" c="dimmed" lh={1.2}>
-                      {user.role}
-                    </Text>
-                  </Stack>
+                  <Text size="sm" visibleFrom="sm">
+                    {displayName}
+                  </Text>
                   <IconChevronDown size={14} />
                 </Group>
               </UnstyledButton>
             </Menu.Target>
-
             <Menu.Dropdown>
+              <Menu.Label>{user.email}</Menu.Label>
+              <Menu.Divider />
               <Menu.Item
-                leftSection={<IconLogout size={14} />}
                 color="red"
-                onClick={() => void logout()}
+                leftSection={
+                  <IconLogout style={{ width: rem(14), height: rem(14) }} />
+                }
+                onClick={() => logoutAction()}
               >
-                Logout
+                Sign out
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>
         </Group>
-      </AppShell.Header>
+      </MantineAppShell.Header>
 
-      <AppShell.Navbar p="md">
-        <Stack gap={4}>
-          {visibleNavItems.map((item) => (
-            <NavLink
-              key={item.href}
-              label={item.label}
-              leftSection={<item.icon size={16} />}
-              active={pathname.startsWith(item.href)}
-              component={Link}
-              href={item.href}
-              variant="filled"
-            />
-          ))}
-        </Stack>
-      </AppShell.Navbar>
+      <MantineAppShell.Navbar p="md">
+        {visibleNavItems.map((item) => (
+          <NavLink
+            key={item.href}
+            component={Link}
+            href={item.href}
+            label={item.label}
+            leftSection={item.icon}
+            active={
+              pathname === item.href || pathname.startsWith(`${item.href}/`)
+            }
+            mb="xs"
+          />
+        ))}
+      </MantineAppShell.Navbar>
 
-      <AppShell.Main>{children}</AppShell.Main>
-    </AppShell>
+      <MantineAppShell.Main>{children}</MantineAppShell.Main>
+    </MantineAppShell>
   );
 }

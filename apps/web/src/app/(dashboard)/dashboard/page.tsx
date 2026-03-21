@@ -1,61 +1,64 @@
-'use client';
+import { Suspense } from 'react';
+import type { Metadata } from 'next';
+import { Grid, Paper, Title, Text, Stack, Skeleton } from '@mantine/core';
 
-import { Title, Text, Card, Group, Stack, Badge } from '@mantine/core';
-import { IconUsers, IconShieldCheck } from '@tabler/icons-react';
-import { useAuth } from '@/hooks/useAuth';
+export const metadata: Metadata = {
+  title: 'Dashboard | Admin Backoffice',
+};
+
+function StatCardSkeleton() {
+  return (
+    <Paper withBorder p="md" radius="md">
+      <Skeleton height={14} width="40%" mb="sm" />
+      <Skeleton height={28} width="55%" />
+    </Paper>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Paper withBorder p="md" radius="md">
+      <Text size="sm" c="dimmed" mb="xs">
+        {label}
+      </Text>
+      <Title order={3}>{value}</Title>
+    </Paper>
+  );
+}
+
+function StatCards() {
+  return (
+    <Grid>
+      <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+        <StatCard label="Total Users" value="—" />
+      </Grid.Col>
+      <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+        <StatCard label="Active Sessions" value="—" />
+      </Grid.Col>
+      <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+        <StatCard label="Pending Actions" value="—" />
+      </Grid.Col>
+    </Grid>
+  );
+}
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-
-  if (!user) return null;
-
-  const displayName = user.profile.firstName || user.email;
-
   return (
-    <Stack gap="xl">
-      <div>
-        <Title order={2}>Welcome back, {displayName}</Title>
-        <Text c="dimmed" mt={4}>
-          Here&apos;s an overview of your admin backoffice.
-        </Text>
-      </div>
-
-      <Group gap="md">
-        <Card withBorder radius="md" p="lg" style={{ flex: 1, minWidth: 200 }}>
-          <Group justify="space-between" mb="xs">
-            <Text size="sm" fw={500} c="dimmed">
-              Your Role
-            </Text>
-            <IconShieldCheck size={20} color="var(--mantine-color-blue-6)" />
-          </Group>
-          <Badge size="lg" variant="light" color="blue">
-            {user.role}
-          </Badge>
-        </Card>
-
-        <Card withBorder radius="md" p="lg" style={{ flex: 1, minWidth: 200 }}>
-          <Group justify="space-between" mb="xs">
-            <Text size="sm" fw={500} c="dimmed">
-              Account Status
-            </Text>
-            <IconUsers size={20} color="var(--mantine-color-green-6)" />
-          </Group>
-          <Badge size="lg" variant="light" color="green">
-            {user.status}
-          </Badge>
-        </Card>
-
-        <Card withBorder radius="md" p="lg" style={{ flex: 1, minWidth: 200 }}>
-          <Group justify="space-between" mb="xs">
-            <Text size="sm" fw={500} c="dimmed">
-              Email
-            </Text>
-          </Group>
-          <Text size="sm" fw={500} truncate>
-            {user.email}
-          </Text>
-        </Card>
-      </Group>
+    <Stack gap="lg">
+      <Title order={2}>Dashboard</Title>
+      <Suspense
+        fallback={
+          <Grid>
+            {[1, 2, 3].map((n) => (
+              <Grid.Col key={n} span={{ base: 12, sm: 6, md: 4 }}>
+                <StatCardSkeleton />
+              </Grid.Col>
+            ))}
+          </Grid>
+        }
+      >
+        <StatCards />
+      </Suspense>
     </Stack>
   );
 }

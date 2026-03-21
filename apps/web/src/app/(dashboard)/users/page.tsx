@@ -1,57 +1,36 @@
-'use client';
+import { cookies } from 'next/headers';
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+import type { UserDTO } from '@repo/schemas';
+import { apiFetch } from '@/lib/api';
+import { makeQueryClient } from '@/lib/query-client';
+import { userKeys } from '@/features/users/hooks/useUsers';
+import { UsersTable } from '@/features/users/components/UsersTable';
+import { Title, Stack } from '@mantine/core';
 
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Button, Group, Title } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconUserPlus } from '@tabler/icons-react';
-import dynamic from 'next/dynamic';
-import { UserTable } from '@/components/users/UserTable';
-import { useAuth } from '@/hooks/useAuth';
+const DEFAULT_PARAMS = { cursor: undefined, limit: 20, search: '' };
 
-const UserFormModal = dynamic(
-  () => import('@/components/users/UserFormModal').then((m) => m.UserFormModal),
-  { ssr: false },
-);
+export default async function UsersPage() {
+  const cookieStore = await cookies();
+  const sid = cookieStore.get('sid');
+  const cookieHeader = sid ? `sid=${sid.value}` : '';
 
-export default function UsersPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const { user: actor } = useAuth();
-  const [createOpened, { open: openCreate, close: closeCreate }] = useDisclosure(false);
-
-  const page = Number(searchParams.get('page') ?? '1');
-  const limit = Number(searchParams.get('limit') ?? '20');
-
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(newPage));
-    router.push(`/users?${params.toString()}`);
-  };
-
-  const canCreateUsers = actor && actor.role !== 'USER';
-  const preloadModal = () => { import('@/components/users/UserFormModal'); };
+  const queryClient = makeQueryClient();
+  await queryClient.prefetchQuery({
+    queryKey: userKeys.list(DEFAULT_PARAMS),
+    queryFn: () =>
+      apiFetch<UserDTO[]>(
+        `/api/users?limit=${DEFAULT_PARAMS.limit}`,
+        {},
+        cookieHeader,
+      ),
+  });
 
   return (
-    <>
-      <Group justify="space-between" mb="md">
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <Stack gap="lg">
         <Title order={2}>Users</Title>
-        {canCreateUsers && (
-          <Button
-            leftSection={<IconUserPlus size={16} />}
-            onClick={openCreate}
-            onMouseEnter={preloadModal}
-            onFocus={preloadModal}
-          >
-            Create User
-          </Button>
-        )}
-      </Group>
-
-      <UserTable page={page} limit={limit} actor={actor} onPageChange={handlePageChange} />
-
-      {canCreateUsers && (
-        <UserFormModal mode="create" actor={actor} opened={createOpened} onClose={closeCreate} />
-      )}
-    </>
+        <UsersTable />
+      </Stack>
+    </HydrationBoundary>
   );
 }

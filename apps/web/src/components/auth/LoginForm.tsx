@@ -1,46 +1,56 @@
 'use client';
 
-import { TextInput, PasswordInput, Button, Paper, Title, Stack, Text } from '@mantine/core';
+import { useTransition } from 'react';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
+import { TextInput, PasswordInput, Button, Stack } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { LoginDTOSchema, type LoginDTO } from '@repo/schemas';
+import { loginAction } from '@/features/auth/actions';
+import { toast } from '@/lib/toast';
 
 export function LoginForm() {
+  const [isPending, startTransition] = useTransition();
+
   const form = useForm<LoginDTO>({
     validate: zodResolver(LoginDTOSchema),
     initialValues: { email: '', password: '' },
   });
 
-  const handleSubmit = form.onSubmit((values) => {
-    console.log(values);
-  });
+  function handleSubmit(values: LoginDTO) {
+    startTransition(async () => {
+      const result = await loginAction(values);
+      if (result?.error) {
+        toast.error(result.error, {
+          title: 'Login failed',
+          icon: <IconAlertCircle size={16} />,
+        });
+      }
+    });
+  }
 
   return (
-    <Paper withBorder shadow="md" p={30} radius="md">
-      <Title order={2} ta="center" mb="xs">
-        Admin Backoffice
-      </Title>
-      <Text c="dimmed" size="sm" ta="center" mb="xl">
-        Sign in to your account
-      </Text>
-
-      <form onSubmit={handleSubmit}>
-        <Stack>
-          <TextInput
-            label="Email"
-            placeholder="admin@example.com"
-            {...form.getInputProps('email')}
-          />
-          <PasswordInput
-            label="Password"
-            placeholder="Your password"
-            {...form.getInputProps('password')}
-          />
-          <Button type="submit" fullWidth mt="md">
-            Sign in
-          </Button>
-        </Stack>
-      </form>
-    </Paper>
+    <form onSubmit={form.onSubmit(handleSubmit)} noValidate>
+      <Stack gap="md">
+        <TextInput
+          label="Email"
+          placeholder="you@example.com"
+          type="email"
+          autoComplete="email"
+          disabled={isPending}
+          {...form.getInputProps('email')}
+        />
+        <PasswordInput
+          label="Password"
+          placeholder="Your password"
+          autoComplete="current-password"
+          disabled={isPending}
+          {...form.getInputProps('password')}
+        />
+        <Button type="submit" loading={isPending} fullWidth mt="sm">
+          Sign in
+        </Button>
+      </Stack>
+    </form>
   );
 }

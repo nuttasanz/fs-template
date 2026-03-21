@@ -1,30 +1,24 @@
-'use client';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import type { UserDTO } from '@repo/schemas';
+import { apiFetch } from '@/lib/api';
+import { AppShell } from '@/components/layout/AppShell';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { LoadingOverlay, Box } from '@mantine/core';
-import { useAuth } from '@/hooks/useAuth';
-import { AppShellLayout } from '@/components/layout/AppShell';
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const sid = cookieStore.get('sid');
+  const cookieHeader = sid ? `sid=${sid.value}` : '';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && user === null) {
-      router.replace('/login');
+  let user: UserDTO;
+  try {
+    const response = await apiFetch<UserDTO>('/api/v1/auth/me', {}, cookieHeader);
+    if (!response.data) {
+      redirect('/login');
     }
-  }, [isLoading, user, router]);
-
-  if (isLoading) {
-    return (
-      <Box pos="relative" h="100vh">
-        <LoadingOverlay visible />
-      </Box>
-    );
+    user = response.data;
+  } catch {
+    redirect('/login');
   }
 
-  if (!user) return null;
-
-  return <AppShellLayout user={user}>{children}</AppShellLayout>;
+  return <AppShell user={user}>{children}</AppShell>;
 }
