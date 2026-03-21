@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import setCookieParser from 'set-cookie-parser';
 import type { LoginDTO } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
+import { captureError } from '@/lib/logger';
 import { serverEnv } from '@/env.server';
 
 export type AuthActionResult = { error?: string };
@@ -35,7 +36,8 @@ export async function loginAction(data: LoginDTO): Promise<AuthActionResult> {
     // Node.js 18+ Web API — returns string[] correctly for multiple Set-Cookie headers
     const setCookieHeaders = response.headers.getSetCookie();
     parsedCookies = setCookieParser.parse(setCookieHeaders);
-  } catch {
+  } catch (e) {
+    captureError(e, 'loginAction');
     return { error: 'Unable to connect. Please try again later.' };
   }
 
@@ -63,7 +65,10 @@ export async function logoutAction(): Promise<void> {
   } catch (e) {
     // Swallow ApiError — even if the backend session is already expired,
     // we still clear the local cookie so the user is not stuck.
-    if (!(e instanceof ApiError)) throw e;
+    if (!(e instanceof ApiError)) {
+      captureError(e, 'logoutAction');
+      throw e;
+    }
   }
 
   cookieStore.delete('sid');

@@ -37,6 +37,15 @@ describe('AuthService — login', () => {
   it('returns a SessionDTO and sets an HttpOnly cookie on valid credentials', async () => {
     mockBcryptCompare.mockResolvedValue(true);
 
+    const mockTx = {
+      delete: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(undefined) }),
+      insert: jest.fn().mockReturnValue({
+        values: jest.fn().mockReturnValue({
+          returning: jest.fn().mockResolvedValue([SESSION_RECORD]),
+        }),
+      }),
+    };
+
     const db = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -45,12 +54,7 @@ describe('AuthService — login', () => {
           }),
         }),
       }),
-      delete: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(undefined) }),
-      insert: jest.fn().mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([SESSION_RECORD]),
-        }),
-      }),
+      transaction: jest.fn((cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,6 +78,11 @@ describe('AuthService — login', () => {
       returning: jest.fn().mockResolvedValue([SESSION_RECORD]),
     });
 
+    const mockTx = {
+      delete: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(undefined) }),
+      insert: jest.fn().mockReturnValue({ values: insertValues }),
+    };
+
     const db = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({
@@ -82,8 +91,7 @@ describe('AuthService — login', () => {
           }),
         }),
       }),
-      delete: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(undefined) }),
-      insert: jest.fn().mockReturnValue({ values: insertValues }),
+      transaction: jest.fn((cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

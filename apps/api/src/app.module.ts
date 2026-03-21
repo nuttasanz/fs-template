@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
@@ -10,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
+import { AuditLogListener } from './common/listeners/audit-log.listener';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 @Module({
@@ -28,6 +30,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
       },
     }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     ThrottlerModule.forRoot([{ name: 'global', ttl: 15 * 60 * 1000, limit: 100 }]), // 100 req / 15 min globally
     DatabaseModule,
     AuthModule,
@@ -41,6 +44,8 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
     // Apply audit logging globally to all mutation endpoints.
     { provide: APP_INTERCEPTOR, useClass: AuditLogInterceptor },
+    // Handles audit log events asynchronously (persists to DB outside request cycle).
+    AuditLogListener,
   ],
 })
 export class AppModule implements NestModule {

@@ -10,6 +10,16 @@ export const UserRoleSchema = z.enum(['SUPER_ADMIN', 'ADMIN', 'USER'], {
 
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
+/**
+ * Numeric hierarchy for role comparison: higher value = greater privilege.
+ * Single source of truth — used by both backend RBAC and frontend UI guards.
+ */
+export const ROLE_HIERARCHY: Record<UserRole, number> = {
+  USER: 1,
+  ADMIN: 2,
+  SUPER_ADMIN: 3,
+};
+
 export const UserStatusSchema = z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED'], {
   description: 'The lifecycle status of a user account.',
 });

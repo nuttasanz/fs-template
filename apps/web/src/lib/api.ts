@@ -1,6 +1,7 @@
 import 'server-only';
 import type { BaseResponse, ErrorResponse, PaginatedBaseResponse } from '@repo/schemas';
 import { serverEnv } from '@/env.server';
+import { captureError } from '@/lib/logger';
 
 export class ApiError extends Error {
   constructor(
@@ -33,6 +34,9 @@ export async function apiFetch<T>(
       message: `HTTP ${response.status}`,
       code: 'INTERNAL_ERROR',
     }));
+    if (response.status >= 500) {
+      captureError(errorBody, `apiFetch ${path}`);
+    }
     throw new ApiError(response.status, errorBody);
   }
 
@@ -64,6 +68,9 @@ export async function paginatedApiFetch<T>(
       message: `HTTP ${response.status}`,
       code: 'INTERNAL_ERROR',
     }));
+    if (response.status >= 500) {
+      captureError(errorBody, `paginatedApiFetch ${path}`);
+    }
     throw new ApiError(response.status, errorBody);
   }
 

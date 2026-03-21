@@ -4,6 +4,7 @@ export {
   UserDTOSchema,
   CreateUserDTOSchema,
   UpdateUserDTOSchema,
+  ROLE_HIERARCHY,
 } from './user.schema';
 
 export type { UserRole, UserStatus, UserDTO, CreateUserDTO, UpdateUserDTO } from './user.schema';

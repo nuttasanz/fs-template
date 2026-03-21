@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconPencil, IconTrash, IconUserPlus } from '@tabler/icons-react';
-import type { UserDTO, PaginatedMeta } from '@repo/schemas';
+import { ROLE_HIERARCHY, type UserDTO, type PaginatedMeta } from '@repo/schemas';
 import { deleteUserAction } from '../actions';
 import { CreateUserModal } from './CreateUserModal';
 import { EditUserModal } from './EditUserModal';
@@ -29,12 +29,10 @@ interface UsersTableProps {
   actor: UserDTO;
 }
 
-const ROLE_ORDER: Record<string, number> = { SUPER_ADMIN: 3, ADMIN: 2, USER: 1 };
-
 function canModify(actor: UserDTO, target: UserDTO): boolean {
   if (!actor?.role || !target?.role) return false;
-  const actorLevel = ROLE_ORDER[actor.role] ?? 0;
-  const targetLevel = ROLE_ORDER[target.role] ?? 0;
+  const actorLevel = ROLE_HIERARCHY[actor.role] ?? 0;
+  const targetLevel = ROLE_HIERARCHY[target.role] ?? 0;
   return actorLevel > targetLevel;
 }
 

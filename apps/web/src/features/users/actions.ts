@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import type { CreateUserDTO, UpdateUserDTO } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
+import { captureError } from '@/lib/logger';
 
 export type UserActionResult =
   | { success: true }
@@ -32,6 +33,7 @@ export async function createUserAction(dto: CreateUserDTO): Promise<UserActionRe
       }
       return { success: false, error: e.body.message };
     }
+    captureError(e, 'createUserAction');
     return { success: false, error: 'An unexpected error occurred.' };
   }
 }
@@ -54,6 +56,7 @@ export async function updateUserAction(id: string, dto: UpdateUserDTO): Promise<
       }
       return { success: false, error: e.body.message };
     }
+    captureError(e, 'updateUserAction');
     return { success: false, error: 'An unexpected error occurred.' };
   }
 }
@@ -66,6 +69,7 @@ export async function deleteUserAction(id: string): Promise<UserActionResult> {
     return { success: true };
   } catch (e) {
     if (e instanceof ApiError) return { success: false, error: e.body.message };
+    captureError(e, 'deleteUserAction');
     return { success: false, error: 'An unexpected error occurred.' };
   }
 }

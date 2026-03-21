@@ -8,14 +8,11 @@ export const LoginDTOSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
   password: z
     .string()
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      'Password must be at least 8 characters and contain uppercase, lowercase, digit, and special character.',
-    )
+    .min(1, 'Password is required.')
     .describe(
       'The account password. Only presence is validated here — enforcing ' +
         'complexity rules on the login form would leak the current password ' +
-        'policy to attackers. Full verification happens server-side.',
+        'policy to attackers. Full verification happens server-side via bcrypt.',
     ),
 });
 

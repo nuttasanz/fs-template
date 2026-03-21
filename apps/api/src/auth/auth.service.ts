@@ -35,20 +35,22 @@ export class AuthService {
     const passwordMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials.');
 
-    // Delete only expired sessions to clear database trash.
-    await this.db
-      .delete(sessions)
-      .where(and(eq(sessions.userId, user.id), lt(sessions.expiresAt, new Date())));
-
     const rawToken = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
     const sessionTtlMs = this.config.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + sessionTtlMs);
 
-    const [session] = await this.db
-      .insert(sessions)
-      .values({ userId: user.id, token: tokenHash, expiresAt })
-      .returning();
+    // Cleanup expired sessions and create a new one atomically.
+    const [session] = await this.db.transaction(async (tx) => {
+      await tx
+        .delete(sessions)
+        .where(and(eq(sessions.userId, user.id), lt(sessions.expiresAt, new Date())));
+
+      return tx
+        .insert(sessions)
+        .values({ userId: user.id, token: tokenHash, expiresAt })
+        .returning();
+    });
 
     if (!session)
       throw new InternalServerErrorException('Failed to create session. Please try again.');

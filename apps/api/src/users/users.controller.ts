@@ -20,6 +20,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import {
   CreateUserDTOSchema,
   UpdateUserDTOSchema,
@@ -145,6 +146,7 @@ export class UsersController {
   }
 
   @Post()
+  @Throttle({ global: { ttl: 15 * 60 * 1000, limit: 10 } })
   @ResponseMessage('User created.')
   @ApiOperation({ summary: 'Create a new user (ADMIN+ only)' })
   @ApiBody({
@@ -185,6 +187,7 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @Throttle({ global: { ttl: 15 * 60 * 1000, limit: 10 } })
   @ResponseMessage('User updated.')
   @ApiOperation({ summary: 'Update a user (RBAC-enforced)' })
   @ApiBody({
@@ -223,6 +226,7 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @Throttle({ global: { ttl: 15 * 60 * 1000, limit: 10 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete a user (RBAC-enforced)' })
   @ApiResponse({ status: 204, description: 'User deleted (soft).' })

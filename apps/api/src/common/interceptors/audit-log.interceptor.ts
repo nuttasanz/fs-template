@@ -1,8 +1,18 @@
-import { CallHandler, ExecutionContext, Inject, Injectable, NestInterceptor } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import type { Request } from 'express';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Observable, tap } from 'rxjs';
-import { DRIZZLE_CLIENT, type DrizzleClient } from '../../database/database.provider';
-import { auditLogs } from '../../database/schema';
+import { AUDIT_LOG_EVENT, AuditLogEvent } from '../events/audit-log.event';
+
+const SENSITIVE_FIELDS = new Set(['password', 'passwordHash', 'token', 'secret']);
+
+function sanitizeChanges(body: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(body)) {
+    sanitized[key] = SENSITIVE_FIELDS.has(key) ? '[REDACTED]' : value;
+  }
+  return sanitized;
+}
 
 const METHOD_TO_ACTION: Record<string, string> = {
   POST: 'CREATE',
@@ -13,7 +23,7 @@ const METHOD_TO_ACTION: Record<string, string> = {
 
 @Injectable()
 export class AuditLogInterceptor implements NestInterceptor {
-  constructor(@Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient) {}
+  constructor(private readonly eventEmitter: EventEmitter2) {}
 
   intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = ctx.switchToHttp().getRequest<Request>();
@@ -23,29 +33,25 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap(() => {
-        void this.writeAuditLog(request, action);
+        // Extract entity name: /api/v1/users/123 → skip 'api' prefix and 'v{n}' version segment → 'users'
+        const segments = request.path.split('/').filter(Boolean);
+        const versionIndex = segments.findIndex((s) => /^v\d+$/.test(s));
+        const entityName = segments[versionIndex + 1] ?? segments[1] ?? 'unknown';
+        const targetId = request.params['id'] ?? null;
+        const changes = action !== 'DELETE' ? sanitizeChanges(request.body as Record<string, unknown>) : null;
+
+        this.eventEmitter.emit(
+          AUDIT_LOG_EVENT,
+          new AuditLogEvent(
+            request.sessionUser?.id ?? null,
+            action,
+            targetId,
+            entityName,
+            changes,
+            request.ip ?? null,
+          ),
+        );
       }),
     );
-  }
-
-  private async writeAuditLog(request: Request, action: string): Promise<void> {
-    try {
-      // Extract entity name from the second path segment: /api/users/123 → users
-      const entityName = request.path.split('/').filter(Boolean)[1] ?? 'unknown';
-      const targetId = request.params['id'] ?? null;
-      const changes = action !== 'DELETE' ? (request.body as Record<string, unknown>) : null;
-
-      await this.db.insert(auditLogs).values({
-        actorId: request.sessionUser?.id ?? null,
-        action,
-        targetId,
-        entityName,
-        changes,
-        ipAddress: request.ip ?? null,
-      });
-    } catch (err) {
-      // Audit failures must never crash the main request. Log and continue.
-      console.error('[AuditLog] Failed to write audit log entry:', err);
-    }
   }
 }

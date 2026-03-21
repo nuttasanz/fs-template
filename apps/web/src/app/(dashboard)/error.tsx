@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { Center, Title, Text, Button, Stack } from '@mantine/core';
+import { captureError } from '@/lib/logger';
 
 interface ErrorProps {
   error: Error;
@@ -10,7 +11,7 @@ interface ErrorProps {
 
 export default function DashboardError({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error('[DashboardError]', error);
+    captureError(error, 'DashboardError');
   }, [error]);
 
   return (
