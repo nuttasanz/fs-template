@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { UserDTO } from '@repo/schemas';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, ApiError } from '@/lib/api';
 import { AppShell } from '@/components/layout/AppShell';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -16,8 +16,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
       redirect('/login');
     }
     user = response.data;
-  } catch {
-    redirect('/login');
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) {
+      redirect('/login');
+    }
+    throw e;
   }
 
   return <AppShell user={user}>{children}</AppShell>;

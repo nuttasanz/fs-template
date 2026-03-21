@@ -1,6 +1,8 @@
+import { cookies } from 'next/headers';
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { Grid, Paper, Title, Text, Stack, Skeleton } from '@mantine/core';
+import { Grid, Paper, Title, Text, Stack, Skeleton, GridCol } from '@mantine/core';
+import { apiFetch } from '@/lib/api';
 
 export const metadata: Metadata = {
   title: 'Dashboard | Admin Backoffice',
@@ -26,18 +28,24 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatCards() {
+async function StatCards() {
+  const cookieStore = await cookies();
+  const sid = cookieStore.get('sid');
+  const response = await apiFetch<{ totalUsers: number; activeSessions: number }>(
+    '/api/v1/users/stats',
+    {},
+    sid ? `sid=${sid.value}` : '',
+  );
+  const stats = response.data;
+
   return (
     <Grid>
-      <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
-        <StatCard label="Total Users" value="—" />
-      </Grid.Col>
-      <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
-        <StatCard label="Active Sessions" value="—" />
-      </Grid.Col>
-      <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
-        <StatCard label="Pending Actions" value="—" />
-      </Grid.Col>
+      <GridCol span={{ base: 12, sm: 6, md: 4 }}>
+        <StatCard label="Total Users" value={String(stats?.totalUsers ?? 0)} />
+      </GridCol>
+      <GridCol span={{ base: 12, sm: 6, md: 4 }}>
+        <StatCard label="Active Sessions" value={String(stats?.activeSessions ?? 0)} />
+      </GridCol>
     </Grid>
   );
 }
@@ -49,10 +57,10 @@ export default function DashboardPage() {
       <Suspense
         fallback={
           <Grid>
-            {[1, 2, 3].map((n) => (
-              <Grid.Col key={n} span={{ base: 12, sm: 6, md: 4 }}>
+            {[1, 2].map((n) => (
+              <GridCol key={n} span={{ base: 12, sm: 6, md: 4 }}>
                 <StatCardSkeleton />
-              </Grid.Col>
+              </GridCol>
             ))}
           </Grid>
         }

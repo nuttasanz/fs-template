@@ -7,11 +7,11 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import type { CreateUserDTO, UpdateUserDTO, UserDTO, UserRole, UserStatus } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
-import { profiles, users } from '../database/schema';
+import { profiles, sessions, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { ROLE_HIERARCHY } from '../common/constants/role-hierarchy';
@@ -35,6 +35,23 @@ export class UsersService {
     @Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  async getStats(): Promise<{ totalUsers: number; activeSessions: number }> {
+    const [userCount] = await this.db
+      .select({ count: count() })
+      .from(users)
+      .where(isNull(users.deletedAt));
+
+    const [sessionCount] = await this.db
+      .select({ count: count() })
+      .from(sessions)
+      .where(gt(sessions.expiresAt, new Date()));
+
+    return {
+      totalUsers: userCount?.count ?? 0,
+      activeSessions: sessionCount?.count ?? 0,
+    };
+  }
 
   async findAll(query: FindUsersQuery): Promise<PaginatedUsers> {
     const limit = Math.min(

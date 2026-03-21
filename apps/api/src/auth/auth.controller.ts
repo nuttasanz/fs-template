@@ -20,6 +20,7 @@ import { COOKIE_NAME } from '../common/constants/session.constants';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { swaggerErrorSchema } from '../common/swagger/error-schema.swagger';
 import type { SessionUser } from '../common/types/session.types';
 
 @ApiTags('auth')
@@ -43,7 +44,21 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 200, description: 'Login successful. Sets HttpOnly sid cookie.' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed.',
+    schema: swaggerErrorSchema('VALIDATION_FAILED', '/api/v1/auth/login'),
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials.',
+    schema: swaggerErrorSchema('AUTH_UNAUTHORIZED', '/api/v1/auth/login'),
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many login attempts.',
+    schema: swaggerErrorSchema('BAD_REQUEST', '/api/v1/auth/login'),
+  })
   login(
     @Body(new ZodValidationPipe(LoginDTOSchema)) dto: LoginDTO,
     @Res({ passthrough: true }) res: Response,
@@ -57,7 +72,11 @@ export class AuthController {
   @ApiCookieAuth('sid')
   @ApiOperation({ summary: 'Invalidate the current session and clear the cookie' })
   @ApiResponse({ status: 204, description: 'Logged out successfully.' })
-  @ApiResponse({ status: 401, description: 'Not authenticated.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Not authenticated.',
+    schema: swaggerErrorSchema('AUTH_UNAUTHORIZED', '/api/v1/auth/logout'),
+  })
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     const rawToken: string | undefined = req.cookies[COOKIE_NAME];
     if (!rawToken) throw new UnauthorizedException();
@@ -70,7 +89,11 @@ export class AuthController {
   @ApiCookieAuth('sid')
   @ApiOperation({ summary: 'Return the currently authenticated user' })
   @ApiResponse({ status: 200, description: 'The authenticated user.' })
-  @ApiResponse({ status: 401, description: 'Not authenticated.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Not authenticated.',
+    schema: swaggerErrorSchema('AUTH_UNAUTHORIZED', '/api/v1/auth/me'),
+  })
   getMe(@CurrentUser() user: SessionUser): Promise<UserDTO> {
     return this.authService.getMe(user);
   }
