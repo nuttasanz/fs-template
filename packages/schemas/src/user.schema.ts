@@ -46,7 +46,10 @@ export const CreateUserDTOSchema = z.object({
   email: z.string().email().describe('Email address for the new account. Must be globally unique.'),
   password: z
     .string()
-    .min(12)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+      'Password must be at least 8 characters and contain uppercase, lowercase, digit, and special character.',
+    )
     .describe(
       'Plain-text password supplied by the admin. Minimum 12 characters (NIST SP 800-63B). ' +
         'The backend is responsible for hashing before persistence.',
