@@ -76,7 +76,7 @@ export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
         <Stack gap="md">
           <TextInput
             label="Email"
-            placeholder="user@example.com"
+            placeholder="email@example.com"
             type="email"
             required
             disabled={isPending}
@@ -84,7 +84,7 @@ export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
           />
           <PasswordInput
             label="Password"
-            placeholder="Min. 12 characters"
+            placeholder="Password"
             required
             disabled={isPending}
             {...form.getInputProps('password')}

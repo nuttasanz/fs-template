@@ -34,7 +34,7 @@ export function LoginForm() {
       <Stack gap="md">
         <TextInput
           label="Email"
-          placeholder="you@example.com"
+          placeholder="email@example.com"
           type="email"
           autoComplete="email"
           disabled={isPending}
@@ -42,7 +42,7 @@ export function LoginForm() {
         />
         <PasswordInput
           label="Password"
-          placeholder="Your password"
+          placeholder="Password"
           autoComplete="current-password"
           disabled={isPending}
           {...form.getInputProps('password')}
