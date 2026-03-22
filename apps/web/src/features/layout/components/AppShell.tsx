@@ -37,7 +37,7 @@ export function AppShell({ user, children }: AppShellProps) {
       </MantineAppShell.Header>
 
       <MantineAppShell.Navbar p="md">
-        <SidebarNav userRole={user.role} />
+        <SidebarNav userRole={user.role} onClose={toggle} />
       </MantineAppShell.Navbar>
 
       <MantineAppShell.Main>{children}</MantineAppShell.Main>

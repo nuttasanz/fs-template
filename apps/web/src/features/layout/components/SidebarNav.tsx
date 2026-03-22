@@ -29,9 +29,10 @@ const NAV_ITEMS: NavItem[] = [
 
 interface SidebarNavProps {
   userRole: UserDTO['role'];
+  onClose: () => void;
 }
 
-export function SidebarNav({ userRole }: SidebarNavProps) {
+export function SidebarNav({ userRole, onClose }: SidebarNavProps) {
   const pathname = usePathname();
 
   const visibleItems = NAV_ITEMS.filter(
@@ -49,6 +50,7 @@ export function SidebarNav({ userRole }: SidebarNavProps) {
           leftSection={item.icon}
           active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
           mb="xs"
+          onClick={onClose}
         />
       ))}
     </>
