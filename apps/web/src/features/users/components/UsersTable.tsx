@@ -223,32 +223,34 @@ export function UsersTable({
         </Group>
 
         <Paper withBorder radius="md">
-          <Table highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Created</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.length > 0 ? (
-                rows
-              ) : (
+          <Table.ScrollContainer minWidth={500} h={500}>
+            <Table highlightOnHover>
+              <Table.Thead>
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
-                    <Center py="xl">
-                      <Text c="dimmed" size="sm">
-                        No users found.
-                      </Text>
-                    </Center>
-                  </Table.Td>
+                  <Table.Th>User</Table.Th>
+                  <Table.Th>Role</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>Created</Table.Th>
+                  <Table.Th />
                 </Table.Tr>
-              )}
-            </Table.Tbody>
-          </Table>
+              </Table.Thead>
+              <Table.Tbody>
+                {rows.length > 0 ? (
+                  rows
+                ) : (
+                  <Table.Tr>
+                    <Table.Td colSpan={5}>
+                      <Center py="xl">
+                        <Text c="dimmed" size="sm">
+                          No users found.
+                        </Text>
+                      </Center>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
         </Paper>
 
         <Group justify="space-between">
