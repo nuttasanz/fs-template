@@ -230,14 +230,6 @@ describe('UsersService — create', () => {
       });
 
     const db = {
-      // email uniqueness check — no existing user
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([]),
-          }),
-        }),
-      }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transaction: jest
         .fn()
@@ -259,17 +251,22 @@ describe('UsersService — create', () => {
     expect(db.transaction).toHaveBeenCalled();
   });
 
-  it('throws ConflictException when the email already exists', async () => {
-    const existing = { id: 'existing' };
+  it('throws ConflictException when the email already exists (pg 23505)', async () => {
+    const pgError = Object.assign(new Error('duplicate key value violates unique constraint'), {
+      code: '23505',
+    });
+
+    const txInsert = jest.fn().mockReturnValue({
+      values: jest.fn().mockReturnValue({
+        returning: jest.fn().mockRejectedValue(pgError),
+      }),
+    });
 
     const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([existing]),
-          }),
-        }),
-      }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ insert: txInsert })),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -333,12 +330,20 @@ describe('UsersService — update', () => {
 // ---------------------------------------------------------------------------
 
 describe('UsersService — remove', () => {
-  it('soft-deletes the user by setting deletedAt (row is not physically removed)', async () => {
+  it('soft-deletes the user and revokes sessions inside a transaction', async () => {
     const targetUser = makeUserDTO();
-    const dbUpdateWhere = jest.fn().mockResolvedValue(undefined);
-    const dbUpdateSet = jest.fn().mockReturnValue({ where: dbUpdateWhere });
+    const txUpdateWhere = jest.fn().mockResolvedValue(undefined);
+    const txUpdateSet = jest.fn().mockReturnValue({ where: txUpdateWhere });
+    const txDeleteWhere = jest.fn().mockResolvedValue(undefined);
+
     const db = {
-      update: jest.fn().mockReturnValue({ set: dbUpdateSet }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transaction: jest.fn().mockImplementation((cb: (tx: any) => Promise<unknown>) =>
+        cb({
+          update: jest.fn().mockReturnValue({ set: txUpdateSet }),
+          delete: jest.fn().mockReturnValue({ where: txDeleteWhere }),
+        }),
+      ),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -347,10 +352,18 @@ describe('UsersService — remove', () => {
 
     await service.remove('u1', SUPER_ADMIN_ACTOR);
 
-    // Verify update was called (soft delete path)
-    expect(db.update).toHaveBeenCalled();
-    const setArg = dbUpdateSet.mock.calls[0][0] as Record<string, unknown>;
+    // Verify transaction was called (soft delete + session revocation)
+    expect(db.transaction).toHaveBeenCalled();
+    const setArg = txUpdateSet.mock.calls[0][0] as Record<string, unknown>;
     expect(setArg['deletedAt']).toBeInstanceOf(Date);
+    // Verify sessions were deleted
+    expect(txDeleteWhere).toHaveBeenCalled();
+  });
+
+  it('throws ForbiddenException when attempting to delete own account', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService({} as any, mockConfig as any);
+    await expect(service.remove('actor', SUPER_ADMIN_ACTOR)).rejects.toThrow(ForbiddenException);
   });
 
   it('throws ForbiddenException when the actor lacks permission to remove the target', async () => {

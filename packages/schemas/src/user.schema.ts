@@ -61,7 +61,7 @@ export const CreateUserDTOSchema = z.object({
       'Password must be at least 8 characters and contain uppercase, lowercase, digit, and special character.',
     )
     .describe(
-      'Plain-text password supplied by the admin. Minimum 12 characters (NIST SP 800-63B). ' +
+      'Plain-text password supplied by the admin. Minimum 8 characters with complexity requirements. ' +
         'The backend is responsible for hashing before persistence.',
     ),
   role: UserRoleSchema.describe(

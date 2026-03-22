@@ -158,7 +158,7 @@ export class UsersController {
       required: ['email', 'password', 'role'],
       properties: {
         email: { type: 'string', format: 'email' },
-        password: { type: 'string', minLength: 12 },
+        password: { type: 'string', minLength: 8 },
         role: { type: 'string', enum: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
         firstName: { type: 'string' },
         lastName: { type: 'string' },

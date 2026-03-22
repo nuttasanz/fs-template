@@ -29,3 +29,5 @@ export type {
   PaginatedBaseResponse,
   PaginatedMeta,
 } from './response.schema';
+
+export { canManageRole } from './rbac.utils';

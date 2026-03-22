@@ -14,7 +14,7 @@ import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provide
 import { profiles, sessions, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
-import { ROLE_HIERARCHY } from '../common/constants/role-hierarchy';
+import { canManageRole } from '@repo/schemas';
 
 export interface FindUsersQuery {
   cursor?: string;
@@ -154,42 +154,41 @@ export class UsersService {
   async create(dto: CreateUserDTO, actor: SessionUser): Promise<UserDTO> {
     this.enforceRbac(actor.role, dto.role);
 
-    // Check email uniqueness.
-    const [existing] = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, dto.email))
-      .limit(1);
-
-    if (existing) throw new ConflictException('User with this email already exists.');
-
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
-    const row = await this.db.transaction(async (tx) => {
-      const [user] = await tx
-        .insert(users)
-        .values({ email: dto.email, passwordHash, role: dto.role, status: 'ACTIVE' })
-        .returning();
+    try {
+      const row = await this.db.transaction(async (tx) => {
+        const [user] = await tx
+          .insert(users)
+          .values({ email: dto.email, passwordHash, role: dto.role, status: 'ACTIVE' })
+          .returning();
 
-      if (!user) throw new InternalServerErrorException('Failed to create user. Please try again.');
+        if (!user) throw new InternalServerErrorException('Failed to create user. Please try again.');
 
-      const [profile] = await tx
-        .insert(profiles)
-        .values({
-          userId: user.id,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          bio: dto.bio ?? null,
-        })
-        .returning();
+        const [profile] = await tx
+          .insert(profiles)
+          .values({
+            userId: user.id,
+            firstName: dto.firstName,
+            lastName: dto.lastName,
+            bio: dto.bio ?? null,
+          })
+          .returning();
 
-      if (!profile)
-        throw new InternalServerErrorException('Failed to create user. Please try again.');
+        if (!profile)
+          throw new InternalServerErrorException('Failed to create user. Please try again.');
 
-      return { ...user, ...profile };
-    });
+        return { ...user, ...profile };
+      });
 
-    return this.toUserDTO(row);
+      return this.toUserDTO(row);
+    } catch (e) {
+      // pg unique_violation (SQLSTATE 23505) — email already taken.
+      if (e instanceof Error && 'code' in e && (e as Record<string, unknown>)['code'] === '23505') {
+        throw new ConflictException('User with this email already exists.');
+      }
+      throw e;
+    }
   }
 
   async update(id: string, dto: UpdateUserDTO, actor: SessionUser): Promise<UserDTO> {
@@ -218,13 +217,22 @@ export class UsersService {
   }
 
   async remove(id: string, actor: SessionUser): Promise<void> {
+    if (id === actor.id) {
+      throw new ForbiddenException('Cannot delete your own account.');
+    }
+
     const target = await this.findOne(id);
     this.enforceRbac(actor.role, target.role);
 
-    await this.db
-      .update(users)
-      .set({ deletedAt: new Date(), updatedAt: new Date() })
-      .where(eq(users.id, id));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(users.id, id));
+
+      // Revoke all active sessions — prevents deleted user from retaining access.
+      await tx.delete(sessions).where(eq(sessions.userId, id));
+    });
   }
 
   /**
@@ -232,7 +240,7 @@ export class UsersService {
    * Satisfies: "ADMIN CANNOT Create/Update/Delete other ADMIN or SUPER_ADMIN roles."
    */
   private enforceRbac(actorRole: UserRole, targetRole: UserRole): void {
-    if (actorRole !== 'SUPER_ADMIN' && ROLE_HIERARCHY[targetRole] >= ROLE_HIERARCHY[actorRole]) {
+    if (!canManageRole(actorRole, targetRole)) {
       throw new ForbiddenException('You do not have permission to manage users with this role.');
     }
   }
