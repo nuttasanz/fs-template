@@ -17,7 +17,7 @@ vi.mock('next/link', () => ({
 function renderSidebarNav(role: UserDTO['role']) {
   return render(
     <MantineProvider>
-      <SidebarNav userRole={role} />
+      <SidebarNav userRole={role} onClose={vi.fn()} />
     </MantineProvider>,
   );
 }
