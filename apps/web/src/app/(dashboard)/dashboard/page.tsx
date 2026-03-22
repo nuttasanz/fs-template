@@ -36,15 +36,18 @@ async function StatCards() {
     {},
     sid ? `sid=${sid.value}` : '',
   );
+  if (!response.data) {
+    throw new Error('Failed to load dashboard stats');
+  }
   const stats = response.data;
 
   return (
     <Grid>
       <GridCol span={{ base: 12, sm: 6, md: 4 }}>
-        <StatCard label="Total Users" value={String(stats?.totalUsers ?? 0)} />
+        <StatCard label="Total Users" value={String(stats.totalUsers)} />
       </GridCol>
       <GridCol span={{ base: 12, sm: 6, md: 4 }}>
-        <StatCard label="Active Sessions" value={String(stats?.activeSessions ?? 0)} />
+        <StatCard label="Active Sessions" value={String(stats.activeSessions)} />
       </GridCol>
     </Grid>
   );

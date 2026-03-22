@@ -279,6 +279,7 @@ export function UsersTable({
 
       {editingUser && (
         <EditUserModal
+          key={editingUser.id}
           opened={!!editingUser}
           onClose={() => setEditingUser(null)}
           user={editingUser}

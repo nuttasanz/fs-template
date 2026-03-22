@@ -163,7 +163,8 @@ export class UsersService {
           .values({ email: dto.email, passwordHash, role: dto.role, status: 'ACTIVE' })
           .returning();
 
-        if (!user) throw new InternalServerErrorException('Failed to create user. Please try again.');
+        if (!user)
+          throw new InternalServerErrorException('Failed to create user. Please try again.');
 
         const [profile] = await tx
           .insert(profiles)

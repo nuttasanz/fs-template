@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Stack, Title, Skeleton } from '@mantine/core';
 import type { UserDTO, PaginatedMeta } from '@repo/schemas';
@@ -42,7 +43,11 @@ async function UsersContent({
 
   const users = usersResponse.result ?? [];
   const meta = (usersResponse.meta ?? { nextCursor: null, limit: 20 }) as PaginatedMeta;
-  const actor = meResponse.data!;
+
+  if (!meResponse.data) {
+    redirect('/login');
+  }
+  const actor = meResponse.data;
 
   return (
     <UsersTable

@@ -1,7 +1,6 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import {
@@ -30,7 +29,6 @@ const ROLE_OPTIONS = [
 ];
 
 export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<CreateUserDTO>({
@@ -65,7 +63,6 @@ export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
         return;
       }
       toast.success('User created successfully.');
-      router.refresh();
       handleClose();
     });
   }

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useTransition } from 'react';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { Modal, Stack, TextInput, Select, Textarea, Button, Group } from '@mantine/core';
@@ -22,7 +21,6 @@ const ROLE_OPTIONS = [
 ];
 
 export function EditUserModal({ opened, onClose, user }: EditUserModalProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<UpdateUserDTO>({
@@ -34,15 +32,6 @@ export function EditUserModal({ opened, onClose, user }: EditUserModalProps) {
       bio: user.profile.bio ?? '',
     },
   });
-
-  useEffect(() => {
-    form.setValues({
-      firstName: user.profile.firstName,
-      lastName: user.profile.lastName,
-      role: user.role,
-      bio: user.profile.bio ?? '',
-    });
-  }, [user.id]);
 
   function handleClose() {
     onClose();
@@ -62,7 +51,6 @@ export function EditUserModal({ opened, onClose, user }: EditUserModalProps) {
         return;
       }
       toast.success('User updated successfully.');
-      router.refresh();
       handleClose();
     });
   }
