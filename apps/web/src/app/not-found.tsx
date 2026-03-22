@@ -1,5 +1,5 @@
-import { Button, Center, Container, Stack, Text, Title } from "@mantine/core";
-import Link from "next/link";
+import { Button, Center, Container, Stack, Text, Title } from '@mantine/core';
+import Link from 'next/link';
 
 export default function NotFound() {
   return (
@@ -8,7 +8,7 @@ export default function NotFound() {
         <Stack align="center" gap="lg">
           <Title
             order={1}
-            style={{ fontSize: "6rem", fontWeight: 900, lineHeight: 1 }}
+            style={{ fontSize: '6rem', fontWeight: 900, lineHeight: 1 }}
             c="blue.6"
             aria-label="Error code 404"
           >
@@ -22,12 +22,7 @@ export default function NotFound() {
             </Text>
           </Stack>
 
-          <Button
-            component={Link}
-            href="/"
-            size="md"
-            data-testid="not-found-home-button"
-          >
+          <Button component={Link} href="/" size="md" data-testid="not-found-home-button">
             Back to Home
           </Button>
         </Stack>

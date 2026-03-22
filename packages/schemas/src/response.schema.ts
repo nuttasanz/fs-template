@@ -97,9 +97,7 @@ export const PaginatedBaseResponseSchema = <T>(dataSchema: z.ZodType<T>) =>
   z.object({
     success: z.literal(true),
     message: z.string().describe('A human-readable description of the outcome.'),
-    result: dataSchema
-      .optional()
-      .describe('The paginated result set.'),
+    result: dataSchema.optional().describe('The paginated result set.'),
     meta: PaginatedMetaSchema.optional().describe('Pagination metadata.'),
   });
 
@@ -115,7 +113,10 @@ export type PaginatedBaseResponse<T> = {
 // ---------------------------------------------------------------------------
 
 export const PaginatedMetaSchema = z.object({
-  nextCursor: z.string().nullable().describe('Opaque cursor for the next page. Null if no more pages.'),
+  nextCursor: z
+    .string()
+    .nullable()
+    .describe('Opaque cursor for the next page. Null if no more pages.'),
   limit: z.number().int().positive().describe('The page size used for this query.'),
 });
 

@@ -48,7 +48,12 @@ export class TransformInterceptor<T> implements NestInterceptor<T, BaseResponse<
           ]) ?? 'OK';
 
         if (data instanceof PaginatedResponse) {
-          return { success: true as const, message, result: data.data, meta: data.meta } as unknown as BaseResponse<T>;
+          return {
+            success: true as const,
+            message,
+            result: data.data,
+            meta: data.meta,
+          } as unknown as BaseResponse<T>;
         }
 
         return { success: true as const, message, data };

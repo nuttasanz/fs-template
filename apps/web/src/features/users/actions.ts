@@ -28,7 +28,9 @@ export async function createUserAction(dto: CreateUserDTO): Promise<UserActionRe
         return { success: false, error: e.body.message, fieldErrors: { email: e.body.message } };
       }
       if (e.status === 400 && e.body.errors?.length) {
-        const fieldErrors = Object.fromEntries(e.body.errors.map((err) => [err.field, err.message]));
+        const fieldErrors = Object.fromEntries(
+          e.body.errors.map((err) => [err.field, err.message]),
+        );
         return { success: false, error: e.body.message, fieldErrors };
       }
       return { success: false, error: e.body.message };
@@ -51,7 +53,9 @@ export async function updateUserAction(id: string, dto: UpdateUserDTO): Promise<
   } catch (e) {
     if (e instanceof ApiError) {
       if (e.status === 400 && e.body.errors?.length) {
-        const fieldErrors = Object.fromEntries(e.body.errors.map((err) => [err.field, err.message]));
+        const fieldErrors = Object.fromEntries(
+          e.body.errors.map((err) => [err.field, err.message]),
+        );
         return { success: false, error: e.body.message, fieldErrors };
       }
       return { success: false, error: e.body.message };

@@ -90,7 +90,10 @@ export class UsersController {
       status: status ? UserStatusSchema.optional().parse(status) : undefined,
     };
     const result = await this.usersService.findAll(query);
-    return new PaginatedResponse(result.data, { nextCursor: result.nextCursor, limit: result.limit });
+    return new PaginatedResponse(result.data, {
+      nextCursor: result.nextCursor,
+      limit: result.limit,
+    });
   }
 
   // Must be declared before @Get(':id') to prevent 'stats' being parsed as a UUID param.

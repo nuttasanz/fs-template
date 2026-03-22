@@ -4,15 +4,7 @@ import { useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import {
-  Modal,
-  Stack,
-  TextInput,
-  Select,
-  Textarea,
-  Button,
-  Group,
-} from '@mantine/core';
+import { Modal, Stack, TextInput, Select, Textarea, Button, Group } from '@mantine/core';
 import { UpdateUserDTOSchema, type UpdateUserDTO, type UserDTO } from '@repo/schemas';
 import { updateUserAction } from '../actions';
 import { toast } from '@/lib/toast';
@@ -50,7 +42,6 @@ export function EditUserModal({ opened, onClose, user }: EditUserModalProps) {
       role: user.role,
       bio: user.profile.bio ?? '',
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
   function handleClose() {

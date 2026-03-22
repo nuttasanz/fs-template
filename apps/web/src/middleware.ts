@@ -5,15 +5,11 @@ const PROTECTED_PATHS = ['/dashboard', '/users'];
 const AUTH_PATHS = ['/login'];
 
 function isProtected(pathname: string): boolean {
-  return PROTECTED_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
+  return PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 function isAuthPage(pathname: string): boolean {
-  return AUTH_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
+  return AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 export function middleware(request: NextRequest) {

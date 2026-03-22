@@ -38,7 +38,8 @@ export class AuditLogInterceptor implements NestInterceptor {
         const versionIndex = segments.findIndex((s) => /^v\d+$/.test(s));
         const entityName = segments[versionIndex + 1] ?? segments[1] ?? 'unknown';
         const targetId = request.params['id'] ?? null;
-        const changes = action !== 'DELETE' ? sanitizeChanges(request.body as Record<string, unknown>) : null;
+        const changes =
+          action !== 'DELETE' ? sanitizeChanges(request.body as Record<string, unknown>) : null;
 
         this.eventEmitter.emit(
           AUDIT_LOG_EVENT,
