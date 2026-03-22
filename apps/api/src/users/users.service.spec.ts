@@ -87,71 +87,115 @@ describe('UsersService — RBAC enforcement', () => {
 // ---------------------------------------------------------------------------
 
 describe('UsersService — findAll', () => {
-  it('returns cursor-paginated results with correct shape and null nextCursor when no more pages', async () => {
-    const userRow = makeUserRow();
-
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          leftJoin: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              orderBy: jest.fn().mockReturnValue({
-                // Returns 1 row; limit+1=21, so hasMore=false → nextCursor=null
-                limit: jest.fn().mockResolvedValue([userRow]),
+  function makeFindAllDb(totalCount: number, rows: ReturnType<typeof makeUserRow>[]) {
+    // The service calls db.select() twice in Promise.all:
+    // 1st call → COUNT query chain: select().from().leftJoin().where()
+    // 2nd call → data query chain: select().from().leftJoin().where().orderBy().offset().limit()
+    let callIndex = 0;
+    return {
+      select: jest.fn().mockImplementation(() => {
+        const idx = callIndex++;
+        if (idx === 0) {
+          // COUNT query (with LEFT JOIN for search support)
+          return {
+            from: jest.fn().mockReturnValue({
+              leftJoin: jest.fn().mockReturnValue({
+                where: jest.fn().mockResolvedValue([{ count: totalCount }]),
+              }),
+            }),
+          };
+        }
+        // Data query
+        return {
+          from: jest.fn().mockReturnValue({
+            leftJoin: jest.fn().mockReturnValue({
+              where: jest.fn().mockReturnValue({
+                orderBy: jest.fn().mockReturnValue({
+                  offset: jest.fn().mockReturnValue({
+                    limit: jest.fn().mockResolvedValue(rows),
+                  }),
+                }),
               }),
             }),
           }),
-        }),
+        };
       }),
     };
+  }
+
+  it('returns offset-paginated results with correct meta shape', async () => {
+    const userRow = makeUserRow();
+    const db = makeFindAllDb(1, [userRow]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
     const result = await service.findAll({});
 
     expect(result.data).toHaveLength(1);
-    expect(result.nextCursor).toBeNull();
-    expect(result.limit).toBe(20);
+    expect(result.totalItems).toBe(1);
+    expect(result.totalPages).toBe(1);
+    expect(result.currentPage).toBe(1);
+    expect(result.pageSize).toBe(20);
     expect(result.data[0]).toMatchObject({ id: 'u1', email: 'user@test.com' });
   });
 
-  it('returns a non-null nextCursor when there are more pages', async () => {
-    // Build limit+1 = 21 rows to trigger hasMore=true
-    const rows = Array.from({ length: 21 }, (_, i) =>
-      makeUserRow({
-        id: `u${i + 1}`,
-        createdAt: new Date(`2024-01-${String(i + 1).padStart(2, '0')}`),
-      }),
-    );
-
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          leftJoin: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              orderBy: jest.fn().mockReturnValue({
-                limit: jest.fn().mockResolvedValue(rows),
-              }),
-            }),
-          }),
-        }),
-      }),
-    };
+  it('returns correct totalPages for multiple pages', async () => {
+    const rows = Array.from({ length: 10 }, (_, i) => makeUserRow({ id: `u${i + 1}` }));
+    const db = makeFindAllDb(25, rows);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const result = await service.findAll({});
+    const result = await service.findAll({ page: 1, pageSize: 10 });
 
-    expect(result.data).toHaveLength(20); // 21st row sliced off
-    expect(result.nextCursor).not.toBeNull();
+    expect(result.data).toHaveLength(10);
+    expect(result.totalItems).toBe(25);
+    expect(result.totalPages).toBe(3);
+    expect(result.currentPage).toBe(1);
+    expect(result.pageSize).toBe(10);
+  });
 
-    // Cursor must decode to a valid { createdAt, id } object
-    const decoded = JSON.parse(Buffer.from(result.nextCursor!, 'base64url').toString('utf-8')) as {
-      createdAt: string;
-      id: string;
-    };
-    expect(decoded.id).toBe('u20');
-    expect(new Date(decoded.createdAt).getTime()).not.toBeNaN();
+  it('clamps pageSize to USERS_PAGE_LIMIT_MAX', async () => {
+    const db = makeFindAllDb(0, []);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService(db as any, mockConfig as any);
+    const result = await service.findAll({ pageSize: 999 });
+
+    expect(result.pageSize).toBe(100);
+  });
+
+  it('defaults page to 1 when not provided or less than 1', async () => {
+    const db = makeFindAllDb(0, []);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService(db as any, mockConfig as any);
+    const result = await service.findAll({ page: 0 });
+
+    expect(result.currentPage).toBe(1);
+  });
+
+  it('returns results when search term matches', async () => {
+    const userRow = makeUserRow({ firstName: 'John', lastName: 'Doe' });
+    const db = makeFindAllDb(1, [userRow]);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService(db as any, mockConfig as any);
+    const result = await service.findAll({ search: 'John' });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.totalItems).toBe(1);
+  });
+
+  it('ignores empty or whitespace-only search', async () => {
+    const db = makeFindAllDb(0, []);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService(db as any, mockConfig as any);
+    const result = await service.findAll({ search: '' });
+
+    expect(result.data).toHaveLength(0);
+    // Verify db.select was called (query executed without search condition)
+    expect(db.select).toHaveBeenCalled();
   });
 });
 

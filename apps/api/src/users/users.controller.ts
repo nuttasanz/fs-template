@@ -50,22 +50,13 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List users with cursor-based pagination and optional filters' })
-  @ApiQuery({
-    name: 'cursor',
-    required: false,
-    type: String,
-    description: 'Opaque pagination cursor from previous response',
-  })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiOperation({ summary: 'List users with offset-based pagination and optional filters' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number, example: 10 })
   @ApiQuery({ name: 'role', required: false, enum: ['SUPER_ADMIN', 'ADMIN', 'USER'] })
   @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'] })
-  @ApiResponse({ status: 200, description: 'Cursor-paginated list of users.' })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid pagination cursor.',
-    schema: swaggerErrorSchema('BAD_REQUEST', '/api/v1/users'),
-  })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by name' })
+  @ApiResponse({ status: 200, description: 'Paginated list of users.' })
   @ApiResponse({
     status: 401,
     description: 'Not authenticated.',
@@ -78,21 +69,25 @@ export class UsersController {
   })
   @ResponseMessage('Users retrieved.')
   async findAll(
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
     @Query('role') role?: string,
     @Query('status') status?: string,
+    @Query('search') search?: string,
   ): Promise<PaginatedResponse<UserDTO>> {
     const query: FindUsersQuery = {
-      cursor,
-      limit: limit ? parseInt(limit, 10) : undefined,
+      page: page ? parseInt(page, 10) : undefined,
+      pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
       role: role ? UserRoleSchema.optional().parse(role) : undefined,
       status: status ? UserStatusSchema.optional().parse(status) : undefined,
+      search: search?.trim().slice(0, 100) || undefined,
     };
     const result = await this.usersService.findAll(query);
     return new PaginatedResponse(result.data, {
-      nextCursor: result.nextCursor,
-      limit: result.limit,
+      totalItems: result.totalItems,
+      totalPages: result.totalPages,
+      currentPage: result.currentPage,
+      pageSize: result.pageSize,
     });
   }
 

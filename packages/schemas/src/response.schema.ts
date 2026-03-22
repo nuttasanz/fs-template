@@ -113,11 +113,10 @@ export type PaginatedBaseResponse<T> = {
 // ---------------------------------------------------------------------------
 
 export const PaginatedMetaSchema = z.object({
-  nextCursor: z
-    .string()
-    .nullable()
-    .describe('Opaque cursor for the next page. Null if no more pages.'),
-  limit: z.number().int().positive().describe('The page size used for this query.'),
+  totalItems: z.number().int().nonnegative().describe('Total number of items matching the query.'),
+  totalPages: z.number().int().nonnegative().describe('Total number of pages.'),
+  currentPage: z.number().int().positive().describe('The current page number (1-based).'),
+  pageSize: z.number().int().positive().describe('The number of items per page.'),
 });
 
 export type PaginatedMeta = z.infer<typeof PaginatedMetaSchema>;

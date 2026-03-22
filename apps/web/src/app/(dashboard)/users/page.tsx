@@ -12,29 +12,32 @@ export const metadata: Metadata = {
 };
 
 interface UsersPageProps {
-  searchParams: Promise<{ cursor?: string; limit?: string; role?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; pageSize?: string; role?: string; status?: string; search?: string }>;
 }
 
 async function UsersContent({
-  cursor,
-  limit,
+  page,
+  pageSize,
   role,
   status,
+  search,
 }: {
-  cursor?: string;
-  limit?: string;
+  page?: string;
+  pageSize?: string;
   role?: string;
   status?: string;
+  search?: string;
 }) {
   const cookieStore = await cookies();
   const sid = cookieStore.get('sid');
   const cookieHeader = sid ? `sid=${sid.value}` : '';
 
   const params = new URLSearchParams();
-  if (cursor) params.set('cursor', cursor);
+  params.set('page', page ?? '1');
+  params.set('pageSize', pageSize ?? '10');
   if (role) params.set('role', role);
   if (status) params.set('status', status);
-  params.set('limit', limit ?? '20');
+  if (search) params.set('search', search);
 
   const [usersResponse, meResponse] = await Promise.all([
     paginatedApiFetch<UserDTO>(`/api/v1/users?${params.toString()}`, {}, cookieHeader),
@@ -42,7 +45,12 @@ async function UsersContent({
   ]);
 
   const users = usersResponse.result ?? [];
-  const meta = (usersResponse.meta ?? { nextCursor: null, limit: 20 }) as PaginatedMeta;
+  const meta = (usersResponse.meta ?? {
+    totalItems: 0,
+    totalPages: 0,
+    currentPage: 1,
+    pageSize: 10,
+  }) as PaginatedMeta;
 
   if (!meResponse.data) {
     redirect('/login');
@@ -50,14 +58,7 @@ async function UsersContent({
   const actor = meResponse.data;
 
   return (
-    <UsersTable
-      users={users}
-      meta={meta}
-      currentCursor={cursor}
-      actor={actor}
-      currentRole={role}
-      currentStatus={status}
-    />
+    <UsersTable users={users} meta={meta} actor={actor} currentRole={role} currentStatus={status} currentSearch={search} />
   );
 }
 
@@ -73,13 +74,13 @@ function UsersTableSkeleton() {
 }
 
 export default async function UsersPage({ searchParams }: UsersPageProps) {
-  const { cursor, limit, role, status } = await searchParams;
+  const { page, pageSize, role, status, search } = await searchParams;
 
   return (
     <Stack gap="lg">
       <Title order={2}>User Management</Title>
       <Suspense fallback={<UsersTableSkeleton />}>
-        <UsersContent cursor={cursor} limit={limit} role={role} status={status} />
+        <UsersContent page={page} pageSize={pageSize} role={role} status={status} search={search} />
       </Suspense>
     </Stack>
   );

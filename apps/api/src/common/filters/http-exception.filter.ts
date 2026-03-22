@@ -1,4 +1,11 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../exceptions/app-error';
@@ -29,6 +36,8 @@ function resolveCode(status: number, hasErrors: boolean): ErrorCode {
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
@@ -88,7 +97,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       /^\d{5}$/.test((exception as Record<string, unknown>)['code'] as string);
 
     if (isPgError) {
-      console.error('[HttpExceptionFilter] Database error:', exception);
+      this.logger.error('Database error', (exception as Error).stack);
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: isProduction ? 'Internal server error' : (exception as Error).message,
@@ -131,7 +140,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     // ── Unexpected / unhandled error ─────────────────────────────────────────
-    console.error('[HttpExceptionFilter] Unhandled exception:', exception);
+    this.logger.error(
+      'Unhandled exception',
+      exception instanceof Error ? exception.stack : String(exception),
+    );
 
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       success: false,

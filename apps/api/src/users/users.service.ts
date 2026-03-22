@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -7,7 +6,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, count, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
+import { and, count, desc, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import type { CreateUserDTO, UpdateUserDTO, UserDTO, UserRole, UserStatus } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
@@ -17,16 +17,19 @@ import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { canManageRole } from '@repo/schemas';
 
 export interface FindUsersQuery {
-  cursor?: string;
-  limit?: number;
+  page?: number;
+  pageSize?: number;
   role?: UserRole;
   status?: UserStatus;
+  search?: string;
 }
 
 export interface PaginatedUsers {
   data: UserDTO[];
-  nextCursor: string | null;
-  limit: number;
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
 }
 
 @Injectable()
@@ -54,79 +57,72 @@ export class UsersService {
   }
 
   async findAll(query: FindUsersQuery): Promise<PaginatedUsers> {
-    const limit = Math.min(
-      query.limit ?? this.config.USERS_PAGE_LIMIT,
+    const pageSize = Math.min(
+      query.pageSize ?? this.config.USERS_PAGE_LIMIT,
       this.config.USERS_PAGE_LIMIT_MAX,
     );
+    const page = Math.max(query.page ?? 1, 1);
 
-    let cursorDate: Date | undefined;
-    let cursorId: string | undefined;
-    if (query.cursor) {
-      try {
-        const decoded = JSON.parse(Buffer.from(query.cursor, 'base64url').toString('utf-8')) as {
-          createdAt: string;
-          id: string;
-        };
-        cursorDate = new Date(decoded.createdAt);
-        cursorId = decoded.id;
-        if (isNaN(cursorDate.getTime()) || !cursorId) throw new Error();
-      } catch {
-        throw new BadRequestException('Invalid pagination cursor.');
-      }
-    }
-
-    const baseConditions = [
+    const conditions: (SQL | undefined)[] = [
       isNull(users.deletedAt),
       query.role ? eq(users.role, query.role) : undefined,
       query.status ? eq(users.status, query.status) : undefined,
-    ].filter(Boolean);
+    ];
 
-    const cursorCondition =
-      cursorDate && cursorId
-        ? or(
-            lt(users.createdAt, cursorDate),
-            and(eq(users.createdAt, cursorDate), lt(users.id, cursorId)),
-          )
-        : undefined;
+    // PERF: Leading-wildcard ILIKE ('%term%') cannot use a B-tree index.
+    // Acceptable for <50K rows. For larger datasets consider pg_trgm + GIN:
+    //   CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    //   CREATE INDEX profiles_name_trgm_idx ON profiles
+    //     USING gin ((first_name || ' ' || last_name) gin_trgm_ops);
+    if (query.search) {
+      const term = `%${query.search}%`;
+      conditions.push(
+        or(
+          ilike(profiles.firstName, term),
+          ilike(profiles.lastName, term),
+          ilike(sql`${profiles.firstName} || ' ' || ${profiles.lastName}`, term),
+        ),
+      );
+    }
 
-    const allConditions = [...baseConditions, cursorCondition].filter(Boolean);
-    const where =
-      allConditions.length > 0 ? and(...(allConditions as Parameters<typeof and>)) : undefined;
+    const where = and(...conditions.filter(Boolean));
 
-    // Fetch limit+1 to detect whether a next page exists without a COUNT(*) query.
-    const rows = await this.db
-      .select({
-        id: users.id,
-        email: users.email,
-        role: users.role,
-        status: users.status,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-        firstName: profiles.firstName,
-        lastName: profiles.lastName,
-        bio: profiles.bio,
-      })
-      .from(users)
-      .leftJoin(profiles, eq(profiles.userId, users.id))
-      .where(where)
-      .orderBy(desc(users.createdAt), desc(users.id))
-      .limit(limit + 1);
+    const [countResult, rows] = await Promise.all([
+      this.db
+        .select({ count: count() })
+        .from(users)
+        .leftJoin(profiles, eq(profiles.userId, users.id))
+        .where(where),
+      this.db
+        .select({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          firstName: profiles.firstName,
+          lastName: profiles.lastName,
+          bio: profiles.bio,
+        })
+        .from(users)
+        .leftJoin(profiles, eq(profiles.userId, users.id))
+        .where(where)
+        .orderBy(desc(users.createdAt), desc(users.id))
+        .offset((page - 1) * pageSize)
+        .limit(pageSize),
+    ]);
 
-    const hasMore = rows.length > limit;
-    const page = hasMore ? rows.slice(0, limit) : rows;
-    const lastRow = page.at(-1);
+    const totalItems = countResult[0]?.count ?? 0;
+    const totalPages = Math.ceil(totalItems / pageSize);
 
-    const nextCursor =
-      hasMore && lastRow
-        ? Buffer.from(
-            JSON.stringify({
-              createdAt: lastRow.createdAt.toISOString(),
-              id: lastRow.id,
-            }),
-          ).toString('base64url')
-        : null;
-
-    return { data: page.map((r) => this.toUserDTO(r)), nextCursor, limit };
+    return {
+      data: rows.map((r) => this.toUserDTO(r)),
+      totalItems,
+      totalPages,
+      currentPage: page,
+      pageSize,
+    };
   }
 
   async findOne(id: string): Promise<UserDTO> {
@@ -196,19 +192,19 @@ export class UsersService {
     const target = await this.findOne(id);
     this.enforceRbac(actor.role, target.role);
 
-    if (dto.role) this.enforceRbac(actor.role, dto.role);
+    if (dto.role !== undefined) this.enforceRbac(actor.role, dto.role);
 
     await this.db.transaction(async (tx) => {
       await tx
         .update(users)
-        .set({ ...(dto.role && { role: dto.role }), updatedAt: new Date() })
+        .set({ ...(dto.role !== undefined && { role: dto.role }), updatedAt: new Date() })
         .where(eq(users.id, id));
 
       await tx
         .update(profiles)
         .set({
-          ...(dto.firstName && { firstName: dto.firstName }),
-          ...(dto.lastName && { lastName: dto.lastName }),
+          ...(dto.firstName !== undefined && { firstName: dto.firstName }),
+          ...(dto.lastName !== undefined && { lastName: dto.lastName }),
           ...(dto.bio !== undefined && { bio: dto.bio ?? null }),
         })
         .where(eq(profiles.userId, id));
@@ -265,8 +261,8 @@ export class UsersService {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       profile: {
-        firstName: row.firstName ?? '',
-        lastName: row.lastName ?? '',
+        firstName: row.firstName!,
+        lastName: row.lastName!,
         bio: row.bio ?? null,
       },
     };

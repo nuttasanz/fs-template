@@ -14,7 +14,7 @@ import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provide
 import { sessions, users, profiles } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
-import { COOKIE_NAME } from '../common/constants/session.constants';
+import { COOKIE_NAME, daysToMs } from '../common/constants/session.constants';
 
 @Injectable()
 export class AuthService {
@@ -41,7 +41,7 @@ export class AuthService {
 
     const rawToken = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
-    const sessionTtlMs = this.config.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
+    const sessionTtlMs = daysToMs(this.config.SESSION_TTL_DAYS);
     const expiresAt = new Date(Date.now() + sessionTtlMs);
 
     // Cleanup expired sessions and create a new one atomically.

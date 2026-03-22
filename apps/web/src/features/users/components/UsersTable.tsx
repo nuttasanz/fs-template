@@ -6,6 +6,7 @@ import {
   Table,
   Group,
   Text,
+  TextInput,
   Badge,
   ActionIcon,
   Button,
@@ -14,9 +15,11 @@ import {
   Center,
   Tooltip,
   Select,
+  Pagination,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { IconPencil, IconTrash, IconUserPlus } from '@tabler/icons-react';
+import { IconPencil, IconSearch, IconTrash, IconUserPlus } from '@tabler/icons-react';
+import { useDebouncedCallback } from '@mantine/hooks';
 import {
   canManageRole,
   UserRoleSchema,
@@ -32,10 +35,10 @@ import { toast } from '@/lib/toast';
 interface UsersTableProps {
   users: UserDTO[];
   meta: PaginatedMeta;
-  currentCursor?: string;
   actor: UserDTO;
   currentRole?: string;
   currentStatus?: string;
+  currentSearch?: string;
 }
 
 const ROLE_OPTIONS = UserRoleSchema.options.map((r) => ({ value: r, label: r.replace('_', ' ') }));
@@ -58,23 +61,29 @@ const STATUS_COLORS: Record<string, string> = {
   SUSPENDED: 'yellow',
 };
 
-export function UsersTable({
-  users,
-  meta,
-  currentCursor,
-  actor,
-  currentRole,
-  currentStatus,
-}: UsersTableProps) {
+export function UsersTable({ users, meta, actor, currentRole, currentStatus, currentSearch }: UsersTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserDTO | null>(null);
-  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+  const [searchValue, setSearchValue] = useState(currentSearch ?? '');
+
+  const debouncedSearch = useDebouncedCallback((value: string) => {
+    startTransition(() => {
+      router.push(buildUrl({ search: value || undefined, page: '1' }));
+    });
+  }, 400);
 
   function buildUrl(overrides: Record<string, string | undefined>) {
     const params = new URLSearchParams();
-    const merged = { role: currentRole, status: currentStatus, ...overrides };
+    const merged = {
+      role: currentRole,
+      status: currentStatus,
+      search: currentSearch,
+      page: String(meta.currentPage),
+      pageSize: String(meta.pageSize),
+      ...overrides,
+    };
     for (const [key, val] of Object.entries(merged)) {
       if (val) params.set(key, val);
     }
@@ -83,8 +92,9 @@ export function UsersTable({
   }
 
   function handleFilter(key: string, value: string | null) {
-    setCursorHistory([]);
-    router.push(buildUrl({ [key]: value ?? undefined, cursor: undefined }));
+    startTransition(() => {
+      router.push(buildUrl({ [key]: value ?? undefined, page: '1' }));
+    });
   }
 
   function handleDelete(user: UserDTO) {
@@ -114,24 +124,6 @@ export function UsersTable({
         });
       },
     });
-  }
-
-  function handleNextPage() {
-    if (!meta.nextCursor) return;
-    setCursorHistory((prev) => [...prev, currentCursor ?? '']);
-    router.push(buildUrl({ cursor: meta.nextCursor }));
-  }
-
-  function handlePrevPage() {
-    const prev = [...cursorHistory];
-    const prevCursor = prev.pop();
-    setCursorHistory(prev);
-    router.push(buildUrl({ cursor: prevCursor || undefined }));
-  }
-
-  function handleFirstPage() {
-    setCursorHistory([]);
-    router.push(buildUrl({ cursor: undefined }));
   }
 
   const rows = users.map((user) => {
@@ -198,6 +190,18 @@ export function UsersTable({
       <Stack gap="md">
         <Group justify="space-between">
           <Group gap="sm">
+            <TextInput
+              placeholder="Search by name..."
+              leftSection={<IconSearch size={16} />}
+              value={searchValue}
+              onChange={(e) => {
+                const val = e.currentTarget.value;
+                setSearchValue(val);
+                debouncedSearch(val);
+              }}
+              size="sm"
+              w={220}
+            />
             <Select
               placeholder="All roles"
               data={ROLE_OPTIONS}
@@ -222,9 +226,18 @@ export function UsersTable({
           </Button>
         </Group>
 
-        <Paper withBorder radius="md">
-          <Table.ScrollContainer minWidth={500} h={500}>
-            <Table highlightOnHover>
+        <Paper
+          withBorder
+          radius="md"
+          h={400}
+          style={{
+            opacity: isPending ? 0.6 : 1,
+            pointerEvents: isPending ? 'none' : 'auto',
+            transition: 'opacity 200ms ease',
+          }}
+        >
+          <Table.ScrollContainer minWidth={500} h={400}>
+            <Table highlightOnHover stickyHeader stickyHeaderOffset={0}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>User</Table.Th>
@@ -251,30 +264,43 @@ export function UsersTable({
               </Table.Tbody>
             </Table>
           </Table.ScrollContainer>
-        </Paper>
+          <Group justify="space-between" mt="md" p={12}>
+            <Group>
+              <Text size="sm">Rows per page</Text>
+              <Select
+                data={['10', '20', '50', '100']}
+                value={String(meta.pageSize)}
+                onChange={(val) =>
+                  val &&
+                  startTransition(() => {
+                    router.push(buildUrl({ pageSize: val, page: '1' }));
+                  })
+                }
+                allowDeselect={false}
+                w={80}
+              />
+            </Group>
 
-        <Group justify="space-between">
-          <Text size="sm" c="dimmed">
-            Showing {users.length} user{users.length !== 1 ? 's' : ''}
-          </Text>
-          <Group gap="xs">
-            {currentCursor && (
-              <Button variant="default" size="xs" onClick={handleFirstPage}>
-                First Page
-              </Button>
-            )}
-            {cursorHistory.length > 0 && (
-              <Button variant="default" size="xs" onClick={handlePrevPage}>
-                Previous Page
-              </Button>
-            )}
-            {meta.nextCursor && (
-              <Button variant="default" size="xs" onClick={handleNextPage}>
-                Next Page
-              </Button>
-            )}
+            <Group gap="sm">
+              <Text size="sm" c="dimmed">
+                {meta.totalItems > 0
+                  ? `${(meta.currentPage - 1) * meta.pageSize + 1}–${Math.min(meta.currentPage * meta.pageSize, meta.totalItems)} of ${meta.totalItems}`
+                  : '0 items'}
+              </Text>
+              <Pagination
+                total={meta.totalPages}
+                value={meta.currentPage}
+                onChange={(p) =>
+                  startTransition(() => {
+                    router.push(buildUrl({ page: String(p) }));
+                  })
+                }
+                withEdges
+                disabled={isPending}
+              />
+            </Group>
           </Group>
-        </Group>
+        </Paper>
       </Stack>
 
       <CreateUserModal opened={createOpen} onClose={() => setCreateOpen(false)} />

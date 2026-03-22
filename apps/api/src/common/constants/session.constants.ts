@@ -4,3 +4,10 @@
  * implementation detail, not an operator-controlled setting.
  */
 export const COOKIE_NAME = 'sid' as const;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** Convert a whole number of days to milliseconds. */
+export function daysToMs(days: number): number {
+  return days * MS_PER_DAY;
+}

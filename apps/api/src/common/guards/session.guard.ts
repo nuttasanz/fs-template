@@ -38,6 +38,7 @@ export class SessionGuard implements CanActivate {
         and(
           eq(sessions.token, tokenHash),
           gt(sessions.expiresAt, new Date()),
+          eq(users.status, 'ACTIVE'),
           isNull(users.deletedAt),
         ),
       )
