@@ -61,7 +61,14 @@ const STATUS_COLORS: Record<string, string> = {
   SUSPENDED: 'yellow',
 };
 
-export function UsersTable({ users, meta, actor, currentRole, currentStatus, currentSearch }: UsersTableProps) {
+export function UsersTable({
+  users,
+  meta,
+  actor,
+  currentRole,
+  currentStatus,
+  currentSearch,
+}: UsersTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);

@@ -12,7 +12,13 @@ export const metadata: Metadata = {
 };
 
 interface UsersPageProps {
-  searchParams: Promise<{ page?: string; pageSize?: string; role?: string; status?: string; search?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    pageSize?: string;
+    role?: string;
+    status?: string;
+    search?: string;
+  }>;
 }
 
 async function UsersContent({
@@ -58,7 +64,14 @@ async function UsersContent({
   const actor = meResponse.data;
 
   return (
-    <UsersTable users={users} meta={meta} actor={actor} currentRole={role} currentStatus={status} currentSearch={search} />
+    <UsersTable
+      users={users}
+      meta={meta}
+      actor={actor}
+      currentRole={role}
+      currentStatus={status}
+      currentSearch={search}
+    />
   );
 }
 
