@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { UserDTO } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
-import { AppShell } from '@/features/layout/AppShell';
+import { AppShell } from '@/features/layout/components/AppShell';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();

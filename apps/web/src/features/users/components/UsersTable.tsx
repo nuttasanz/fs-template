@@ -13,10 +13,17 @@ import {
   Paper,
   Center,
   Tooltip,
+  Select,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconPencil, IconTrash, IconUserPlus } from '@tabler/icons-react';
-import { canManageRole, type UserDTO, type PaginatedMeta } from '@repo/schemas';
+import {
+  canManageRole,
+  UserRoleSchema,
+  UserStatusSchema,
+  type UserDTO,
+  type PaginatedMeta,
+} from '@repo/schemas';
 import { deleteUserAction } from '../actions';
 import { CreateUserModal } from './CreateUserModal';
 import { EditUserModal } from './EditUserModal';
@@ -27,7 +34,12 @@ interface UsersTableProps {
   meta: PaginatedMeta;
   currentCursor?: string;
   actor: UserDTO;
+  currentRole?: string;
+  currentStatus?: string;
 }
+
+const ROLE_OPTIONS = UserRoleSchema.options.map((r) => ({ value: r, label: r.replace('_', ' ') }));
+const STATUS_OPTIONS = UserStatusSchema.options.map((s) => ({ value: s, label: s }));
 
 function canModify(actor: UserDTO, target: UserDTO): boolean {
   if (!actor?.role || !target?.role) return false;
@@ -46,11 +58,34 @@ const STATUS_COLORS: Record<string, string> = {
   SUSPENDED: 'yellow',
 };
 
-export function UsersTable({ users, meta, currentCursor, actor }: UsersTableProps) {
+export function UsersTable({
+  users,
+  meta,
+  currentCursor,
+  actor,
+  currentRole,
+  currentStatus,
+}: UsersTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserDTO | null>(null);
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+
+  function buildUrl(overrides: Record<string, string | undefined>) {
+    const params = new URLSearchParams();
+    const merged = { role: currentRole, status: currentStatus, ...overrides };
+    for (const [key, val] of Object.entries(merged)) {
+      if (val) params.set(key, val);
+    }
+    const qs = params.toString();
+    return qs ? `/users?${qs}` : '/users';
+  }
+
+  function handleFilter(key: string, value: string | null) {
+    setCursorHistory([]);
+    router.push(buildUrl({ [key]: value ?? undefined, cursor: undefined }));
+  }
 
   function handleDelete(user: UserDTO) {
     modals.openConfirmModal({
@@ -83,12 +118,20 @@ export function UsersTable({ users, meta, currentCursor, actor }: UsersTableProp
 
   function handleNextPage() {
     if (!meta.nextCursor) return;
-    const params = new URLSearchParams({ cursor: meta.nextCursor });
-    router.push(`/users?${params.toString()}`);
+    setCursorHistory((prev) => [...prev, currentCursor ?? '']);
+    router.push(buildUrl({ cursor: meta.nextCursor }));
+  }
+
+  function handlePrevPage() {
+    const prev = [...cursorHistory];
+    const prevCursor = prev.pop();
+    setCursorHistory(prev);
+    router.push(buildUrl({ cursor: prevCursor || undefined }));
   }
 
   function handleFirstPage() {
-    router.push('/users');
+    setCursorHistory([]);
+    router.push(buildUrl({ cursor: undefined }));
   }
 
   const rows = users.map((user) => {
@@ -153,7 +196,27 @@ export function UsersTable({ users, meta, currentCursor, actor }: UsersTableProp
   return (
     <>
       <Stack gap="md">
-        <Group justify="flex-end">
+        <Group justify="space-between">
+          <Group gap="sm">
+            <Select
+              placeholder="All roles"
+              data={ROLE_OPTIONS}
+              value={currentRole ?? null}
+              onChange={(val) => handleFilter('role', val)}
+              clearable
+              size="sm"
+              w={160}
+            />
+            <Select
+              placeholder="All statuses"
+              data={STATUS_OPTIONS}
+              value={currentStatus ?? null}
+              onChange={(val) => handleFilter('status', val)}
+              clearable
+              size="sm"
+              w={160}
+            />
+          </Group>
           <Button leftSection={<IconUserPlus size={16} />} onClick={() => setCreateOpen(true)}>
             Create User
           </Button>
@@ -196,6 +259,11 @@ export function UsersTable({ users, meta, currentCursor, actor }: UsersTableProp
             {currentCursor && (
               <Button variant="default" size="xs" onClick={handleFirstPage}>
                 First Page
+              </Button>
+            )}
+            {cursorHistory.length > 0 && (
+              <Button variant="default" size="xs" onClick={handlePrevPage}>
+                Previous Page
               </Button>
             )}
             {meta.nextCursor && (

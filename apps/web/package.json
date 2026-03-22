@@ -21,7 +21,6 @@
     "@mantine/notifications": "^7.17.1",
     "@repo/schemas": "workspace:*",
     "@tabler/icons-react": "^3.31.0",
-    "@tanstack/react-query": "^5.74.4",
     "mantine-form-zod-resolver": "^1.1.0",
     "next": "^15.2.4",
     "postcss": "^8.5.3",

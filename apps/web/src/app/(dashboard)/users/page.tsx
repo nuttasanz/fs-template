@@ -11,16 +11,28 @@ export const metadata: Metadata = {
 };
 
 interface UsersPageProps {
-  searchParams: Promise<{ cursor?: string; limit?: string }>;
+  searchParams: Promise<{ cursor?: string; limit?: string; role?: string; status?: string }>;
 }
 
-async function UsersContent({ cursor, limit }: { cursor?: string; limit?: string }) {
+async function UsersContent({
+  cursor,
+  limit,
+  role,
+  status,
+}: {
+  cursor?: string;
+  limit?: string;
+  role?: string;
+  status?: string;
+}) {
   const cookieStore = await cookies();
   const sid = cookieStore.get('sid');
   const cookieHeader = sid ? `sid=${sid.value}` : '';
 
   const params = new URLSearchParams();
   if (cursor) params.set('cursor', cursor);
+  if (role) params.set('role', role);
+  if (status) params.set('status', status);
   params.set('limit', limit ?? '20');
 
   const [usersResponse, meResponse] = await Promise.all([
@@ -32,7 +44,16 @@ async function UsersContent({ cursor, limit }: { cursor?: string; limit?: string
   const meta = (usersResponse.meta ?? { nextCursor: null, limit: 20 }) as PaginatedMeta;
   const actor = meResponse.data!;
 
-  return <UsersTable users={users} meta={meta} currentCursor={cursor} actor={actor} />;
+  return (
+    <UsersTable
+      users={users}
+      meta={meta}
+      currentCursor={cursor}
+      actor={actor}
+      currentRole={role}
+      currentStatus={status}
+    />
+  );
 }
 
 function UsersTableSkeleton() {
@@ -47,13 +68,13 @@ function UsersTableSkeleton() {
 }
 
 export default async function UsersPage({ searchParams }: UsersPageProps) {
-  const { cursor, limit } = await searchParams;
+  const { cursor, limit, role, status } = await searchParams;
 
   return (
     <Stack gap="lg">
       <Title order={2}>User Management</Title>
       <Suspense fallback={<UsersTableSkeleton />}>
-        <UsersContent cursor={cursor} limit={limit} />
+        <UsersContent cursor={cursor} limit={limit} role={role} status={status} />
       </Suspense>
     </Stack>
   );

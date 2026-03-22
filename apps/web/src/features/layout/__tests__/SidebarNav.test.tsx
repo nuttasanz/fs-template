@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MantineProvider } from '@mantine/core';
-import { SidebarNav } from './SidebarNav';
+import { SidebarNav } from '../components/SidebarNav';
 import type { UserDTO } from '@repo/schemas';
 
 vi.mock('next/navigation', () => ({
