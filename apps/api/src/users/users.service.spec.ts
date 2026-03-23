@@ -420,3 +420,120 @@ describe('UsersService — remove', () => {
     await expect(service.remove('u1', ADMIN_ACTOR)).rejects.toThrow(ForbiddenException);
   });
 });
+
+// ---------------------------------------------------------------------------
+// getStats
+// ---------------------------------------------------------------------------
+
+describe('UsersService — getStats', () => {
+  it('returns totalUsers and activeSessions counts', async () => {
+    let selectCall = 0;
+    const db = {
+      select: jest.fn().mockImplementation(() => {
+        const idx = selectCall++;
+        if (idx === 0) {
+          // user count query
+          return {
+            from: jest.fn().mockReturnValue({
+              where: jest.fn().mockResolvedValue([{ count: 42 }]),
+            }),
+          };
+        }
+        // session count query
+        return {
+          from: jest.fn().mockReturnValue({
+            where: jest.fn().mockResolvedValue([{ count: 7 }]),
+          }),
+        };
+      }),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService(db as any, mockConfig as any);
+    const result = await service.getStats();
+
+    expect(result).toEqual({ totalUsers: 42, activeSessions: 7 });
+  });
+
+  it('returns 0 when no records exist', async () => {
+    let selectCall = 0;
+    const db = {
+      select: jest.fn().mockImplementation(() => {
+        const idx = selectCall++;
+        if (idx === 0) {
+          return {
+            from: jest.fn().mockReturnValue({
+              where: jest.fn().mockResolvedValue([{ count: 0 }]),
+            }),
+          };
+        }
+        return {
+          from: jest.fn().mockReturnValue({
+            where: jest.fn().mockResolvedValue([{ count: 0 }]),
+          }),
+        };
+      }),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService(db as any, mockConfig as any);
+    const result = await service.getStats();
+
+    expect(result).toEqual({ totalUsers: 0, activeSessions: 0 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// update — RBAC on role change
+// ---------------------------------------------------------------------------
+
+describe('UsersService — update (role change RBAC)', () => {
+  it('allows SUPER_ADMIN to change a USER role to ADMIN', async () => {
+    const targetUser = makeUserDTO({ role: 'USER' });
+    const txWhere = jest.fn().mockResolvedValue(undefined);
+    const txSet = jest.fn().mockReturnValue({ where: txWhere });
+    const txUpdate = jest.fn().mockReturnValue({ set: txSet });
+
+    const db = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ update: txUpdate })),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService(db as any, mockConfig as any);
+    jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
+
+    const result = await service.update('u1', { role: 'ADMIN' }, SUPER_ADMIN_ACTOR);
+
+    expect(db.transaction).toHaveBeenCalled();
+    expect(result).toMatchObject({ id: 'u1' });
+  });
+
+  it('throws ForbiddenException when ADMIN tries to change target role to ADMIN', async () => {
+    const targetUser = makeUserDTO({ role: 'USER' });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService({} as any, mockConfig as any);
+    jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
+
+    // ADMIN cannot assign ADMIN role
+    await expect(service.update('u1', { role: 'ADMIN' }, ADMIN_ACTOR)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('throws ForbiddenException when ADMIN tries to update an ADMIN user', async () => {
+    const targetUser = makeUserDTO({ role: 'ADMIN' });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService({} as any, mockConfig as any);
+    jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
+
+    // ADMIN cannot manage another ADMIN (enforceRbac on target role)
+    await expect(
+      service.update('u1', { firstName: 'Changed' }, ADMIN_ACTOR),
+    ).rejects.toThrow(ForbiddenException);
+  });
+});

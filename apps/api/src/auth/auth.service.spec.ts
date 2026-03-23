@@ -1,6 +1,11 @@
 import * as bcrypt from 'bcrypt';
-import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { AUDIT_LOG_EVENT } from '../common/events/audit-log.event';
 
 jest.mock('bcrypt');
 const mockBcryptCompare = bcrypt.compare as jest.Mock;
@@ -126,8 +131,8 @@ describe('AuthService — login', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       service.login({ email: 'ghost@x.com', password: 'pw' }, res as any),
     ).rejects.toThrow(UnauthorizedException);
   });
@@ -148,8 +153,8 @@ describe('AuthService — login', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       service.login({ email: 'alice@example.com', password: 'wrong' }, res as any),
     ).rejects.toThrow(UnauthorizedException);
   });
@@ -169,8 +174,8 @@ describe('AuthService — login', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       service.login({ email: 'alice@example.com', password: 'pw' }, res as any),
     ).rejects.toThrow(UnauthorizedException);
   });
@@ -262,5 +267,115 @@ describe('AuthService — getMe', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     await expect(service.getMe(SESSION_USER)).rejects.toThrow(NotFoundException);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// login — INACTIVE / SUSPENDED status
+// ---------------------------------------------------------------------------
+
+describe('AuthService — login (status checks)', () => {
+  it.each(['INACTIVE', 'SUSPENDED'] as const)(
+    'throws UnauthorizedException when user status is %s',
+    async (status) => {
+      mockBcryptCompare.mockResolvedValue(true);
+
+      const db = {
+        select: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue([{ ...USER_RECORD, status }]),
+            }),
+          }),
+        }),
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
+      const res = makeRes();
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        service.login({ email: 'alice@example.com', password: 'pw' }, res as any),
+      ).rejects.toThrow(UnauthorizedException);
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
+// login — audit event emission
+// ---------------------------------------------------------------------------
+
+describe('AuthService — login (audit event)', () => {
+  it('emits a LOGIN audit event on successful login', async () => {
+    mockBcryptCompare.mockResolvedValue(true);
+
+    const mockTx = {
+      delete: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(undefined) }),
+      insert: jest.fn().mockReturnValue({
+        values: jest.fn().mockReturnValue({
+          returning: jest.fn().mockResolvedValue([SESSION_RECORD]),
+        }),
+      }),
+    };
+
+    const db = {
+      select: jest.fn().mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([USER_RECORD]),
+          }),
+        }),
+      }),
+      transaction: jest.fn((cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
+    const res = makeRes();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await service.login({ email: 'alice@example.com', password: 'pw' }, res as any);
+
+    expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+      AUDIT_LOG_EVENT,
+      expect.objectContaining({ actorId: 'u1', action: 'LOGIN', entityName: 'auth' }),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// login — session creation failure
+// ---------------------------------------------------------------------------
+
+describe('AuthService — login (session creation failure)', () => {
+  it('throws InternalServerErrorException when session insert returns empty', async () => {
+    mockBcryptCompare.mockResolvedValue(true);
+
+    const mockTx = {
+      delete: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue(undefined) }),
+      insert: jest.fn().mockReturnValue({
+        values: jest.fn().mockReturnValue({
+          returning: jest.fn().mockResolvedValue([]), // empty — no session created
+        }),
+      }),
+    };
+
+    const db = {
+      select: jest.fn().mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([USER_RECORD]),
+          }),
+        }),
+      }),
+      transaction: jest.fn((cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
+    const res = makeRes();
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      service.login({ email: 'alice@example.com', password: 'pw' }, res as any),
+    ).rejects.toThrow(InternalServerErrorException);
   });
 });
