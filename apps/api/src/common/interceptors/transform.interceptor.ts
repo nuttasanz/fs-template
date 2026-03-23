@@ -51,7 +51,7 @@ export class TransformInterceptor<T> implements NestInterceptor<T, BaseResponse<
           return {
             success: true as const,
             message,
-            result: data.data,
+            data: data.data,
             meta: data.meta,
           } as unknown as BaseResponse<T>;
         }

@@ -8,6 +8,7 @@ import {
 import type { Response } from 'express';
 import { randomBytes, createHash } from 'crypto';
 import { and, eq, isNull, lt } from 'drizzle-orm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import type { LoginDTO, SessionDTO, UserDTO } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
@@ -15,12 +16,14 @@ import { sessions, users, profiles } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { COOKIE_NAME, daysToMs } from '../common/constants/session.constants';
+import { AUDIT_LOG_EVENT, AuditLogEvent } from '../common/events/audit-log.event';
 
 @Injectable()
 export class AuthService {
   constructor(
     @Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async login(dto: LoginDTO, res: Response): Promise<SessionDTO> {
@@ -73,6 +76,11 @@ export class AuthService {
       path: '/',
     });
 
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      new AuditLogEvent(user.id, 'LOGIN', user.id, 'auth', null, null),
+    );
+
     return {
       id: session.id,
       userId: user.id,
@@ -80,10 +88,15 @@ export class AuthService {
     };
   }
 
-  async logout(rawToken: string, res: Response): Promise<void> {
+  async logout(rawToken: string, res: Response, actorId: string): Promise<void> {
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
     await this.db.delete(sessions).where(eq(sessions.token, tokenHash));
     res.clearCookie(COOKIE_NAME, { path: '/' });
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      new AuditLogEvent(actorId, 'LOGOUT', actorId, 'auth', null, null),
+    );
   }
 
   async getMe(sessionUser: SessionUser): Promise<UserDTO> {

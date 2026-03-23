@@ -31,7 +31,11 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
-    ThrottlerModule.forRoot([{ name: 'global', ttl: 15 * 60 * 1000, limit: 100 }]), // 100 req / 15 min globally
+    ThrottlerModule.forRoot([
+      { name: 'global', ttl: 15 * 60 * 1000, limit: 100 },
+      { name: 'mutation', ttl: 15 * 60 * 1000, limit: 10 },
+      { name: 'auth', ttl: 15 * 60 * 1000, limit: 5 },
+    ]),
     DatabaseModule,
     AuthModule,
     UsersModule,

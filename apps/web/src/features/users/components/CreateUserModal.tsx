@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import {
@@ -12,24 +12,31 @@ import {
   Textarea,
   Button,
   Group,
+  Alert,
 } from '@mantine/core';
-import { CreateUserDTOSchema, type CreateUserDTO } from '@repo/schemas';
+import { IconAlertCircle } from '@tabler/icons-react';
+import {
+  CreateUserDTOSchema,
+  UserRoleSchema,
+  canManageRole,
+  type CreateUserDTO,
+  type UserDTO,
+} from '@repo/schemas';
 import { createUserAction } from '../actions';
 import { toast } from '@/lib/toast';
 
 interface CreateUserModalProps {
   opened: boolean;
   onClose: () => void;
+  actor: UserDTO;
 }
 
-const ROLE_OPTIONS = [
-  { value: 'USER', label: 'User' },
-  { value: 'ADMIN', label: 'Admin' },
-  { value: 'SUPER_ADMIN', label: 'Super Admin' },
-];
-
-export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
+export function CreateUserModal({ opened, onClose, actor }: CreateUserModalProps) {
+  const roleOptions = UserRoleSchema.options
+    .filter((r) => canManageRole(actor.role, r))
+    .map((r) => ({ value: r, label: r.replace('_', ' ') }));
   const [isPending, startTransition] = useTransition();
+  const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<CreateUserDTO>({
     validate: zodResolver(CreateUserDTOSchema),
@@ -45,10 +52,12 @@ export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
 
   function handleClose() {
     form.reset();
+    setFormError(null);
     onClose();
   }
 
   function handleSubmit(values: CreateUserDTO) {
+    setFormError(null);
     startTransition(async () => {
       const result = await createUserAction(values);
       if (!result.success) {
@@ -58,7 +67,7 @@ export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
           }
         }
         if (!result.fieldErrors) {
-          toast.error(result.error, { title: 'Failed to create user' });
+          setFormError(result.error);
         }
         return;
       }
@@ -68,9 +77,22 @@ export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
   }
 
   return (
-    <Modal opened={opened} onClose={handleClose} title="Create User" size="md" centered>
+    <Modal
+      opened={opened}
+      onClose={handleClose}
+      title="Create User"
+      size="md"
+      centered
+      closeOnClickOutside={!isPending}
+      closeOnEscape={!isPending}
+    >
       <form onSubmit={form.onSubmit(handleSubmit)} noValidate>
         <Stack gap="md">
+          {formError && (
+            <Alert color="red" icon={<IconAlertCircle size={16} />} variant="light">
+              {formError}
+            </Alert>
+          )}
           <TextInput
             label="Email"
             placeholder="email@example.com"
@@ -104,7 +126,7 @@ export function CreateUserModal({ opened, onClose }: CreateUserModalProps) {
           </Group>
           <Select
             label="Role"
-            data={ROLE_OPTIONS}
+            data={roleOptions}
             required
             disabled={isPending}
             {...form.getInputProps('role')}

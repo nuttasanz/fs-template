@@ -24,13 +24,13 @@ import { Throttle } from '@nestjs/throttler';
 import {
   CreateUserDTOSchema,
   UpdateUserDTOSchema,
-  UserRoleSchema,
-  UserStatusSchema,
+  FindUsersQueryDTOSchema,
   type CreateUserDTO,
   type UpdateUserDTO,
+  type FindUsersQueryDTO,
   type UserDTO,
 } from '@repo/schemas';
-import { UsersService, type FindUsersQuery } from './users.service';
+import { UsersService } from './users.service';
 import { PaginatedResponse } from '../common/responses/paginated.response';
 import { SessionGuard } from '../common/guards/session.guard';
 import { RbacGuard } from '../common/guards/rbac.guard';
@@ -69,19 +69,8 @@ export class UsersController {
   })
   @ResponseMessage('Users retrieved.')
   async findAll(
-    @Query('page') page?: string,
-    @Query('pageSize') pageSize?: string,
-    @Query('role') role?: string,
-    @Query('status') status?: string,
-    @Query('search') search?: string,
+    @Query(new ZodValidationPipe(FindUsersQueryDTOSchema)) query: FindUsersQueryDTO,
   ): Promise<PaginatedResponse<UserDTO>> {
-    const query: FindUsersQuery = {
-      page: page ? parseInt(page, 10) : undefined,
-      pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
-      role: role ? UserRoleSchema.optional().parse(role) : undefined,
-      status: status ? UserStatusSchema.optional().parse(status) : undefined,
-      search: search?.trim().slice(0, 100) || undefined,
-    };
     const result = await this.usersService.findAll(query);
     return new PaginatedResponse(result.data, {
       totalItems: result.totalItems,
@@ -144,7 +133,7 @@ export class UsersController {
   }
 
   @Post()
-  @Throttle({ global: { ttl: 15 * 60 * 1000, limit: 10 } })
+  @Throttle({ mutation: {} })
   @ResponseMessage('User created.')
   @ApiOperation({ summary: 'Create a new user (ADMIN+ only)' })
   @ApiBody({
@@ -185,7 +174,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @Throttle({ global: { ttl: 15 * 60 * 1000, limit: 10 } })
+  @Throttle({ mutation: {} })
   @ResponseMessage('User updated.')
   @ApiOperation({ summary: 'Update a user (RBAC-enforced)' })
   @ApiBody({
@@ -224,7 +213,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Throttle({ global: { ttl: 15 * 60 * 1000, limit: 10 } })
+  @Throttle({ mutation: {} })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete a user (RBAC-enforced)' })
   @ApiResponse({ status: 204, description: 'User deleted (soft).' })

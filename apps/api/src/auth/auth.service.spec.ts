@@ -13,6 +13,7 @@ function makeRes() {
   return { cookie: jest.fn(), clearCookie: jest.fn() };
 }
 
+const mockEventEmitter = { emit: jest.fn() };
 const mockConfig = { NODE_ENV: 'test', SESSION_TTL_DAYS: 7 };
 
 const USER_RECORD = {
@@ -32,6 +33,10 @@ const SESSION_RECORD = {
 // ---------------------------------------------------------------------------
 // login
 // ---------------------------------------------------------------------------
+
+beforeEach(() => {
+  mockEventEmitter.emit.mockClear();
+});
 
 describe('AuthService — login', () => {
   it('returns a SessionDTO and sets an HttpOnly cookie on valid credentials', async () => {
@@ -58,7 +63,7 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any, mockConfig as any);
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await service.login({ email: 'alice@example.com', password: 'pw' }, res as any);
@@ -95,7 +100,7 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any, mockConfig as any);
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await service.login({ email: 'alice@example.com', password: 'pw' }, res as any);
@@ -119,7 +124,7 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any, mockConfig as any);
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(
@@ -141,7 +146,7 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any, mockConfig as any);
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(
@@ -162,7 +167,7 @@ describe('AuthService — login', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any, mockConfig as any);
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(
@@ -183,13 +188,17 @@ describe('AuthService — logout', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any, mockConfig as any);
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await service.logout('raw-token-value', res as any);
+    await service.logout('raw-token-value', res as any, 'u1');
 
     expect(db.delete).toHaveBeenCalled();
     expect(res.clearCookie).toHaveBeenCalledWith('sid', expect.objectContaining({ path: '/' }));
+    expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+      'audit.log',
+      expect.objectContaining({ actorId: 'u1', action: 'LOGOUT', entityName: 'auth' }),
+    );
   });
 });
 
@@ -226,7 +235,7 @@ describe('AuthService — getMe', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any, mockConfig as any);
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     const result = await service.getMe(SESSION_USER);
 
     expect(result).toMatchObject({
@@ -251,7 +260,7 @@ describe('AuthService — getMe', () => {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new AuthService(db as any, mockConfig as any);
+    const service = new AuthService(db as any, mockConfig as any, mockEventEmitter as any);
     await expect(service.getMe(SESSION_USER)).rejects.toThrow(NotFoundException);
   });
 });

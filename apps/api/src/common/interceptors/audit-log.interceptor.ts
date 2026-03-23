@@ -31,6 +31,12 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     if (!action) return next.handle();
 
+    // Auth events (login/logout) are audited explicitly in AuthService with correct actorId.
+    const path = request.path;
+    if (path.includes('/auth/login') || path.includes('/auth/logout')) {
+      return next.handle();
+    }
+
     return next.handle().pipe(
       tap(() => {
         // Extract entity name: /api/v1/users/123 → skip 'api' prefix and 'v{n}' version segment → 'users'

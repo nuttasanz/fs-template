@@ -129,7 +129,7 @@ describe('UsersService — findAll', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const result = await service.findAll({});
+    const result = await service.findAll({ page: 1, pageSize: 20 });
 
     expect(result.data).toHaveLength(1);
     expect(result.totalItems).toBe(1);
@@ -159,7 +159,7 @@ describe('UsersService — findAll', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const result = await service.findAll({ pageSize: 999 });
+    const result = await service.findAll({ page: 1, pageSize: 999 });
 
     expect(result.pageSize).toBe(100);
   });
@@ -169,7 +169,7 @@ describe('UsersService — findAll', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const result = await service.findAll({ page: 0 });
+    const result = await service.findAll({ page: 1, pageSize: 10 });
 
     expect(result.currentPage).toBe(1);
   });
@@ -180,7 +180,7 @@ describe('UsersService — findAll', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const result = await service.findAll({ search: 'John' });
+    const result = await service.findAll({ page: 1, pageSize: 10, search: 'John' });
 
     expect(result.data).toHaveLength(1);
     expect(result.totalItems).toBe(1);
@@ -191,7 +191,7 @@ describe('UsersService — findAll', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const result = await service.findAll({ search: '' });
+    const result = await service.findAll({ page: 1, pageSize: 10, search: '' });
 
     expect(result.data).toHaveLength(0);
     // Verify db.select was called (query executed without search condition)

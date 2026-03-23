@@ -41,7 +41,10 @@ interface UsersTableProps {
   currentSearch?: string;
 }
 
-const ROLE_OPTIONS = UserRoleSchema.options.map((r) => ({ value: r, label: r.replace('_', ' ') }));
+const ALL_ROLE_OPTIONS = UserRoleSchema.options.map((r) => ({
+  value: r,
+  label: r.replace('_', ' '),
+}));
 const STATUS_OPTIONS = UserStatusSchema.options.map((s) => ({ value: s, label: s }));
 
 function canModify(actor: UserDTO, target: UserDTO): boolean {
@@ -74,6 +77,8 @@ export function UsersTable({
   const [createOpen, setCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserDTO | null>(null);
   const [searchValue, setSearchValue] = useState(currentSearch ?? '');
+
+  const roleOptions = ALL_ROLE_OPTIONS.filter((r) => canManageRole(actor.role, r.value));
 
   const debouncedSearch = useDebouncedCallback((value: string) => {
     startTransition(() => {
@@ -211,7 +216,7 @@ export function UsersTable({
             />
             <Select
               placeholder="All roles"
-              data={ROLE_OPTIONS}
+              data={roleOptions}
               value={currentRole ?? null}
               onChange={(val) => handleFilter('role', val)}
               clearable
@@ -310,7 +315,7 @@ export function UsersTable({
         </Paper>
       </Stack>
 
-      <CreateUserModal opened={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreateUserModal opened={createOpen} onClose={() => setCreateOpen(false)} actor={actor} />
 
       {editingUser && (
         <EditUserModal
@@ -318,6 +323,7 @@ export function UsersTable({
           opened={!!editingUser}
           onClose={() => setEditingUser(null)}
           user={editingUser}
+          actor={actor}
         />
       )}
     </>

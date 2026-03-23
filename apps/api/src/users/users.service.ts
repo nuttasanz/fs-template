@@ -9,20 +9,21 @@ import {
 import { and, count, desc, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
-import type { CreateUserDTO, UpdateUserDTO, UserDTO, UserRole, UserStatus } from '@repo/schemas';
+import type {
+  CreateUserDTO,
+  UpdateUserDTO,
+  UserDTO,
+  UserRole,
+  UserStatus,
+  FindUsersQueryDTO,
+} from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { profiles, sessions, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { canManageRole } from '@repo/schemas';
 
-export interface FindUsersQuery {
-  page?: number;
-  pageSize?: number;
-  role?: UserRole;
-  status?: UserStatus;
-  search?: string;
-}
+export type FindUsersQuery = FindUsersQueryDTO;
 
 export interface PaginatedUsers {
   data: UserDTO[];

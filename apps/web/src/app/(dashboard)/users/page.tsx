@@ -50,7 +50,7 @@ async function UsersContent({
     apiFetch<UserDTO>('/api/v1/auth/me', {}, cookieHeader),
   ]);
 
-  const users = usersResponse.result ?? [];
+  const users = usersResponse.data ?? [];
   const meta = (usersResponse.meta ?? {
     totalItems: 0,
     totalPages: 0,

@@ -91,3 +91,23 @@ export const UpdateUserDTOSchema = CreateUserDTOSchema.pick({
   .describe('All fields are optional. Only the provided fields will be updated.');
 
 export type UpdateUserDTO = z.infer<typeof UpdateUserDTOSchema>;
+
+// ---------------------------------------------------------------------------
+// FindUsersQueryDTO — validated query parameters for the paginated user list
+//
+// Query params arrive as strings, so numeric fields use `z.coerce.number()`
+// to transparently convert "1" → 1 before validation.
+// ---------------------------------------------------------------------------
+
+export const FindUsersQueryDTOSchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).optional().default(10),
+  role: UserRoleSchema.optional(),
+  status: UserStatusSchema.optional(),
+  search: z
+    .string()
+    .transform((s) => s.trim().slice(0, 100) || undefined)
+    .optional(),
+});
+
+export type FindUsersQueryDTO = z.infer<typeof FindUsersQueryDTOSchema>;

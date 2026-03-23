@@ -5,9 +5,17 @@ export {
   CreateUserDTOSchema,
   UpdateUserDTOSchema,
   ROLE_HIERARCHY,
+  FindUsersQueryDTOSchema,
 } from './user.schema';
 
-export type { UserRole, UserStatus, UserDTO, CreateUserDTO, UpdateUserDTO } from './user.schema';
+export type {
+  UserRole,
+  UserStatus,
+  UserDTO,
+  CreateUserDTO,
+  UpdateUserDTO,
+  FindUsersQueryDTO,
+} from './user.schema';
 
 export { LoginDTOSchema, SessionDTOSchema } from './auth.schema';
 

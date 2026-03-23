@@ -28,7 +28,7 @@ import type { SessionUser } from '../common/types/session.types';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Throttle({ global: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ auth: {} })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('Login successful.')
@@ -77,10 +77,14 @@ export class AuthController {
     description: 'Not authenticated.',
     schema: swaggerErrorSchema('AUTH_UNAUTHORIZED', '/api/v1/auth/logout'),
   })
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @CurrentUser() user: SessionUser,
+  ): Promise<void> {
     const rawToken: string | undefined = req.cookies[COOKIE_NAME];
     if (!rawToken) throw new UnauthorizedException();
-    await this.authService.logout(rawToken, res);
+    await this.authService.logout(rawToken, res, user.id);
   }
 
   @Get('me')
