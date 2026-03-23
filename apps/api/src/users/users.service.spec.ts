@@ -51,10 +51,10 @@ function makeUserDTO(overrides: Partial<UserDTO> = {}): UserDTO {
 describe('UsersService — RBAC enforcement', () => {
   // Instantiate with a minimal mock; enforceRbac has no DB dependency.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new UsersService({} as any, mockConfig as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const enforce = (actorRole: string, targetRole: string) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (service as any).enforceRbac(actorRole, targetRole);
 
   it('ADMIN cannot manage another ADMIN', () => {
@@ -274,9 +274,9 @@ describe('UsersService — create', () => {
       });
 
     const db = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transaction: jest
         .fn()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ insert: txInsert })),
     };
 
@@ -307,9 +307,9 @@ describe('UsersService — create', () => {
     });
 
     const db = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transaction: jest
         .fn()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ insert: txInsert })),
     };
 
@@ -352,9 +352,9 @@ describe('UsersService — update', () => {
     const txUpdate = jest.fn().mockReturnValue({ set: txSet });
 
     const db = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transaction: jest
         .fn()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ update: txUpdate })),
     };
 
@@ -495,9 +495,9 @@ describe('UsersService — update (role change RBAC)', () => {
     const txUpdate = jest.fn().mockReturnValue({ set: txSet });
 
     const db = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transaction: jest
         .fn()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ update: txUpdate })),
     };
 
@@ -532,8 +532,8 @@ describe('UsersService — update (role change RBAC)', () => {
     jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
 
     // ADMIN cannot manage another ADMIN (enforceRbac on target role)
-    await expect(
-      service.update('u1', { firstName: 'Changed' }, ADMIN_ACTOR),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.update('u1', { firstName: 'Changed' }, ADMIN_ACTOR)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });

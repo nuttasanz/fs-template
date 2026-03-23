@@ -33,11 +33,7 @@ function noContentResponse() {
   return new Response(null, { status: 204, headers: { 'Content-Length': '0' } });
 }
 
-function errorResponse(
-  status: number,
-  message = 'Error',
-  code = 'INTERNAL_ERROR',
-) {
+function errorResponse(status: number, message = 'Error', code = 'INTERNAL_ERROR') {
   return jsonResponse({ success: false, message, code }, status);
 }
 
@@ -64,7 +60,9 @@ describe('apiFetch', () => {
     expect(result).toEqual(body);
     expect(fetch).toHaveBeenCalledWith(
       'http://localhost:4000/api/v1/users/1',
-      expect.objectContaining({ headers: expect.objectContaining({ 'Content-Type': 'application/json' }) }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
     );
   });
 
@@ -77,9 +75,7 @@ describe('apiFetch', () => {
   });
 
   it('throws ApiError on 4xx responses', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, 'Not found', 'NOT_FOUND'),
-    );
+    vi.mocked(fetch).mockResolvedValue(errorResponse(404, 'Not found', 'NOT_FOUND'));
 
     try {
       await apiFetch('/api/v1/users/999');
@@ -96,9 +92,9 @@ describe('apiFetch', () => {
       errorResponse(500, 'Internal Server Error', 'INTERNAL_ERROR'),
     );
 
-    await expect(
-      apiFetch('/api/v1/users', { method: 'POST', body: '{}' }),
-    ).rejects.toThrow(ApiError);
+    await expect(apiFetch('/api/v1/users', { method: 'POST', body: '{}' })).rejects.toThrow(
+      ApiError,
+    );
 
     expect(captureError).toHaveBeenCalled();
   });
@@ -116,21 +112,17 @@ describe('apiFetch', () => {
   });
 
   it('does NOT retry POST/PATCH/DELETE on 5xx', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      errorResponse(500, 'Server Error'),
-    );
+    vi.mocked(fetch).mockResolvedValue(errorResponse(500, 'Server Error'));
 
-    await expect(
-      apiFetch('/api/v1/users', { method: 'POST', body: '{}' }),
-    ).rejects.toThrow(ApiError);
+    await expect(apiFetch('/api/v1/users', { method: 'POST', body: '{}' })).rejects.toThrow(
+      ApiError,
+    );
 
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('passes cookie header when provided', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      jsonResponse({ success: true, message: 'OK', data: {} }),
-    );
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({ success: true, message: 'OK', data: {} }));
 
     await apiFetch('/api/v1/auth/me', {}, 'sid=abc123');
 
@@ -179,15 +171,11 @@ describe('paginatedApiFetch', () => {
     const result = await paginatedApiFetch('/api/v1/users?page=1&limit=20');
 
     expect(result).toEqual(body);
-    expect(result.meta).toEqual(
-      expect.objectContaining({ totalItems: 1, currentPage: 1 }),
-    );
+    expect(result.meta).toEqual(expect.objectContaining({ totalItems: 1, currentPage: 1 }));
   });
 
   it('throws ApiError on error response', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      errorResponse(403, 'Forbidden', 'FORBIDDEN'),
-    );
+    vi.mocked(fetch).mockResolvedValue(errorResponse(403, 'Forbidden', 'FORBIDDEN'));
 
     await expect(paginatedApiFetch('/api/v1/users')).rejects.toThrow(ApiError);
   });

@@ -90,7 +90,9 @@ describe('EditUserModal', () => {
 
     const emailInputs = screen.getAllByLabelText(/email/i);
     const emailField = emailInputs.find(
-      (el) => el.getAttribute('value') === 'alice@example.com' || (el as HTMLInputElement).value === 'alice@example.com',
+      (el) =>
+        el.getAttribute('value') === 'alice@example.com' ||
+        (el as HTMLInputElement).value === 'alice@example.com',
     );
     expect(emailField).toBeDefined();
     expect(emailField).toBeDisabled();

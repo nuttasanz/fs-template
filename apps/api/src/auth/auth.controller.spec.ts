@@ -16,10 +16,12 @@ function makeService(overrides: Partial<AuthService> = {}): AuthService {
 }
 
 function makeRes() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { cookie: jest.fn(), clearCookie: jest.fn() } as any;
 }
 
 function makeReq(cookies: Record<string, string> = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { cookies } as any;
 }
 
@@ -66,9 +68,7 @@ describe('AuthController — logout', () => {
     const req = makeReq({}); // no sid cookie
     const res = makeRes();
 
-    await expect(controller.logout(req, res, SESSION_USER)).rejects.toThrow(
-      UnauthorizedException,
-    );
+    await expect(controller.logout(req, res, SESSION_USER)).rejects.toThrow(UnauthorizedException);
     expect(service.logout).not.toHaveBeenCalled();
   });
 });

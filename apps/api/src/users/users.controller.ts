@@ -14,9 +14,16 @@ import {
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { UserDTO } from '@repo/schemas';
+import {
+  CreateUserDTO,
+  CreateUserDTOSchema,
+  FindUsersQueryDTO,
+  FindUsersQueryDTOSchema,
+  UpdateUserDTO,
+  UpdateUserDTOSchema,
+  type UserDTO,
+} from '@repo/schemas';
 import { UsersService } from './users.service';
-import { CreateUserBody, UpdateUserBody, FindUsersQuery } from './users.dto';
 import {
   ApiFindAllUsersDocs,
   ApiGetStatsDocs,
@@ -32,6 +39,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import type { SessionUser } from '../common/types/session.types';
+import { ZodValidationPipe } from 'nestjs-zod';
 
 @ApiTags('users')
 @ApiCookieAuth('sid')
@@ -44,7 +52,9 @@ export class UsersController {
   @Get()
   @ApiFindAllUsersDocs()
   @ResponseMessage('Users retrieved.')
-  async findAll(@Query() query: FindUsersQuery): Promise<PaginatedResponse<UserDTO>> {
+  async findAll(
+    @Query(new ZodValidationPipe(FindUsersQueryDTOSchema)) query: FindUsersQueryDTO,
+  ): Promise<PaginatedResponse<UserDTO>> {
     const result = await this.usersService.findAll(query);
     return new PaginatedResponse(result.data, {
       totalItems: result.totalItems,
@@ -73,7 +83,10 @@ export class UsersController {
   @Throttle({ mutation: {} })
   @ApiCreateUserDocs()
   @ResponseMessage('User created.')
-  create(@Body() dto: CreateUserBody, @CurrentUser() actor: SessionUser): Promise<UserDTO> {
+  create(
+    @Body(new ZodValidationPipe(CreateUserDTOSchema)) dto: CreateUserDTO,
+    @CurrentUser() actor: SessionUser,
+  ): Promise<UserDTO> {
     return this.usersService.create(dto, actor);
   }
 
@@ -83,7 +96,7 @@ export class UsersController {
   @ResponseMessage('User updated.')
   update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateUserBody,
+    @Body(new ZodValidationPipe(UpdateUserDTOSchema)) dto: UpdateUserDTO,
     @CurrentUser() actor: SessionUser,
   ): Promise<UserDTO> {
     return this.usersService.update(id, dto, actor);

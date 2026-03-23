@@ -13,15 +13,15 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import type { SessionDTO, UserDTO } from '@repo/schemas';
+import { LoginDTOSchema, type LoginDTO, type SessionDTO, type UserDTO } from '@repo/schemas';
 import { AuthService } from './auth.service';
-import { LoginBody } from './auth.dto';
 import { ApiLoginDocs, ApiLogoutDocs, ApiGetMeDocs } from './auth.swagger';
 import { SessionGuard } from '../common/guards/session.guard';
 import { COOKIE_NAME } from '../common/constants/session.constants';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import type { SessionUser } from '../common/types/session.types';
+import { ZodValidationPipe } from 'nestjs-zod';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -34,7 +34,7 @@ export class AuthController {
   @ApiLoginDocs()
   @ResponseMessage('Login successful.')
   login(
-    @Body() dto: LoginBody,
+    @Body(new ZodValidationPipe(LoginDTOSchema)) dto: LoginDTO,
     @Res({ passthrough: true }) res: Response,
   ): Promise<SessionDTO> {
     return this.authService.login(dto, res);

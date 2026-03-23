@@ -26,7 +26,9 @@ export function ApiFindAllUsersDocs() {
 
 export function ApiGetStatsDocs() {
   return applyDecorators(
-    ApiOperation({ summary: 'Get aggregate counts for dashboard — total users and active sessions' }),
+    ApiOperation({
+      summary: 'Get aggregate counts for dashboard — total users and active sessions',
+    }),
     ApiResponse({
       status: 200,
       description: 'Dashboard aggregate stats.',

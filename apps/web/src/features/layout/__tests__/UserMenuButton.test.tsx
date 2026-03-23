@@ -17,9 +17,7 @@ vi.mock('@/features/auth/actions', () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-function renderButton(
-  props: { displayName?: string; email?: string; initials?: string } = {},
-) {
+function renderButton(props: { displayName?: string; email?: string; initials?: string } = {}) {
   return render(
     <MantineProvider>
       <UserMenuButton
