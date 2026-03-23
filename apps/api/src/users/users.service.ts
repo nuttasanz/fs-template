@@ -20,6 +20,7 @@ import type {
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { profiles, sessions, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
+import { isPgDatabaseError } from '../common/types/pg-error.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { canManageRole } from '@repo/schemas';
 
@@ -76,7 +77,8 @@ export class UsersService {
     //   CREATE INDEX profiles_name_trgm_idx ON profiles
     //     USING gin ((first_name || ' ' || last_name) gin_trgm_ops);
     if (query.search) {
-      const term = `%${query.search}%`;
+      const escaped = query.search.replace(/[%_\\]/g, '\\$&');
+      const term = `%${escaped}%`;
       conditions.push(
         or(
           ilike(profiles.firstName, term),
@@ -182,7 +184,7 @@ export class UsersService {
       return this.toUserDTO(row);
     } catch (e) {
       // pg unique_violation (SQLSTATE 23505) — email already taken.
-      if (e instanceof Error && 'code' in e && (e as Record<string, unknown>)['code'] === '23505') {
+      if (isPgDatabaseError(e) && e.code === '23505') {
         throw new ConflictException('User with this email already exists.');
       }
       throw e;
@@ -262,8 +264,8 @@ export class UsersService {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       profile: {
-        firstName: row.firstName!,
-        lastName: row.lastName!,
+        firstName: row.firstName ?? '',
+        lastName: row.lastName ?? '',
         bio: row.bio ?? null,
       },
     };

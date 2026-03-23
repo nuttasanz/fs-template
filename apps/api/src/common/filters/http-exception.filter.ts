@@ -9,6 +9,7 @@ import {
 import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../exceptions/app-error';
+import { isPgDatabaseError } from '../types/pg-error.types';
 import { ErrorCode } from '@repo/schemas';
 import type { ErrorField, ErrorResponse } from '@repo/schemas';
 
@@ -90,17 +91,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // ── pg DatabaseError (5-character SQLSTATE code, e.g. '23505') ──────────
     // Services catch known codes (unique violation etc.) and re-throw as AppError,
     // so this branch only fires on genuinely unexpected database failures.
-    const isPgError =
-      exception instanceof Error &&
-      'code' in exception &&
-      typeof (exception as Record<string, unknown>)['code'] === 'string' &&
-      /^\d{5}$/.test((exception as Record<string, unknown>)['code'] as string);
-
-    if (isPgError) {
-      this.logger.error('Database error', (exception as Error).stack);
+    if (isPgDatabaseError(exception)) {
+      this.logger.error('Database error', exception.stack);
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         success: false,
-        message: isProduction ? 'Internal server error' : (exception as Error).message,
+        message: isProduction ? 'Internal server error' : exception.message,
         code: ErrorCode.INTERNAL_ERROR,
         ...meta,
       } satisfies ErrorResponse);
