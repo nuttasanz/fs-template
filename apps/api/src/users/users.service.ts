@@ -16,6 +16,7 @@ import type {
   UserRole,
   UserStatus,
   FindUsersQueryDTO,
+  UserStatsDTO,
 } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { profiles, sessions, users } from '../database/schema';
@@ -41,7 +42,7 @@ export class UsersService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
-  async getStats(): Promise<{ totalUsers: number; activeSessions: number }> {
+  async getStats(): Promise<UserStatsDTO> {
     const [userCount] = await this.db
       .select({ count: count() })
       .from(users)

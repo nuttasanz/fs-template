@@ -22,6 +22,7 @@ import {
   UpdateUserDTO,
   UpdateUserDTOSchema,
   type UserDTO,
+  type UserStatsDTO,
 } from '@repo/schemas';
 import { UsersService } from './users.service';
 import {
@@ -68,7 +69,7 @@ export class UsersController {
   @Get('stats')
   @ApiGetStatsDocs()
   @ResponseMessage('Stats retrieved.')
-  getStats(): Promise<{ totalUsers: number; activeSessions: number }> {
+  getStats(): Promise<UserStatsDTO> {
     return this.usersService.getStats();
   }
 

@@ -30,10 +30,11 @@ async function bootstrap(): Promise<void> {
 
   // ── CORS ─────────────────────────────────────────────────────────────────
   // Wildcard is rejected: credentials (HttpOnly cookies) require explicit origins.
+  const logger = app.get(Logger);
   const rawOrigins = process.env['ALLOWED_ORIGINS'] ?? '';
   if (rawOrigins === '*') {
-    console.error(
-      '[Bootstrap] ALLOWED_ORIGINS cannot be "*" — incompatible with credentials (HttpOnly cookies).',
+    logger.error(
+      'ALLOWED_ORIGINS cannot be "*" — incompatible with credentials (HttpOnly cookies).',
     );
     process.exit(1);
   }
@@ -70,7 +71,7 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env['PORT'] ?? 3001;
   await app.listen(port);
-  app.get(Logger).log(`API running on http://localhost:${port}/api`);
+  logger.log(`API running on http://localhost:${port}/api`);
 }
 
 bootstrap().catch((err) => {

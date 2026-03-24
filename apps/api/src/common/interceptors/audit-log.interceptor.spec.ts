@@ -130,7 +130,10 @@ describe('AuditLogInterceptor', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const interceptor = new AuditLogInterceptor(emitter as any);
 
-    const loginCtx = makeContext('POST', '/api/v1/auth/login', { email: 'a@b.com', password: 'pw' });
+    const loginCtx = makeContext('POST', '/api/v1/auth/login', {
+      email: 'a@b.com',
+      password: 'pw',
+    });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await lastValueFrom(interceptor.intercept(loginCtx as any, makeCallHandler()));
 

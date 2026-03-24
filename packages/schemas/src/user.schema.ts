@@ -93,6 +93,17 @@ export const UpdateUserDTOSchema = CreateUserDTOSchema.pick({
 export type UpdateUserDTO = z.infer<typeof UpdateUserDTOSchema>;
 
 // ---------------------------------------------------------------------------
+// UserStatsDTO — aggregate counts returned by the /users/stats endpoint
+// ---------------------------------------------------------------------------
+
+export const UserStatsDTOSchema = z.object({
+  totalUsers: z.number().int().nonnegative().describe('Total number of user accounts.'),
+  activeSessions: z.number().int().nonnegative().describe('Number of currently active sessions.'),
+});
+
+export type UserStatsDTO = z.infer<typeof UserStatsDTOSchema>;
+
+// ---------------------------------------------------------------------------
 // FindUsersQueryDTO — validated query parameters for the paginated user list
 //
 // Query params arrive as strings, so numeric fields use `z.coerce.number()`

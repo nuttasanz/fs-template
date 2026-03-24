@@ -67,10 +67,12 @@ describe('TransformInterceptor', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const interceptor = new TransformInterceptor(reflector as any);
     const ctx = makeContext();
-    const paginated = new PaginatedResponse(
-      [{ id: '1' }],
-      { totalItems: 1, totalPages: 1, currentPage: 1, pageSize: 20 },
-    );
+    const paginated = new PaginatedResponse([{ id: '1' }], {
+      totalItems: 1,
+      totalPages: 1,
+      currentPage: 1,
+      pageSize: 20,
+    });
     const handler = makeCallHandler(paginated);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,7 +94,9 @@ describe('TransformInterceptor', () => {
     const ctx = makeContext();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nullResult = await lastValueFrom(interceptor.intercept(ctx as any, makeCallHandler(null)));
+    const nullResult = await lastValueFrom(
+      interceptor.intercept(ctx as any, makeCallHandler(null)),
+    );
     expect(nullResult).toBeNull();
 
     const undefinedResult = await lastValueFrom(

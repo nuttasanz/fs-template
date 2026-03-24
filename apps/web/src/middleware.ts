@@ -1,28 +1,27 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PROTECTED_PATHS = ['/dashboard', '/users'];
-const AUTH_PATHS = ['/login'];
+// Secure by default: every route requires a session cookie
+// unless explicitly listed here.
+const PUBLIC_PATHS = ['/login'];
 
-function isProtected(pathname: string): boolean {
-  return PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
-
-function isAuthPage(pathname: string): boolean {
-  return AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+function isPublic(pathname: string): boolean {
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSid = request.cookies.has('sid');
 
-  if (isProtected(pathname) && !hasSid) {
+  // Unauthenticated user hitting a protected route → redirect to login
+  if (!isPublic(pathname) && !hasSid) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (isAuthPage(pathname) && hasSid) {
+  // Authenticated user hitting a public auth page → redirect to dashboard
+  if (isPublic(pathname) && hasSid) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);

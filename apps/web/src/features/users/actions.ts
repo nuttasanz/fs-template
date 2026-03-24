@@ -2,9 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { z } from 'zod';
 import type { CreateUserDTO, UpdateUserDTO } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
 import { captureError } from '@/lib/logger';
+
+const uuidSchema = z.string().uuid();
 
 export type UserActionResult =
   | { success: true }
@@ -41,6 +44,9 @@ export async function createUserAction(dto: CreateUserDTO): Promise<UserActionRe
 }
 
 export async function updateUserAction(id: string, dto: UpdateUserDTO): Promise<UserActionResult> {
+  const parsed = uuidSchema.safeParse(id);
+  if (!parsed.success) return { success: false, error: 'Invalid user ID.' };
+
   const cookieHeader = await getCookieHeader();
   try {
     await apiFetch(
@@ -66,6 +72,9 @@ export async function updateUserAction(id: string, dto: UpdateUserDTO): Promise<
 }
 
 export async function deleteUserAction(id: string): Promise<UserActionResult> {
+  const parsed = uuidSchema.safeParse(id);
+  if (!parsed.success) return { success: false, error: 'Invalid user ID.' };
+
   const cookieHeader = await getCookieHeader();
   try {
     await apiFetch(`/api/v1/users/${id}`, { method: 'DELETE' }, cookieHeader);

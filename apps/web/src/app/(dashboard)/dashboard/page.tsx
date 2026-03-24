@@ -2,7 +2,9 @@ import { cookies } from 'next/headers';
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { Grid, Paper, Title, Text, Stack, Skeleton, GridCol } from '@mantine/core';
+import type { UserStatsDTO } from '@repo/schemas';
 import { apiFetch } from '@/lib/api';
+import { captureError } from '@/lib/logger';
 
 export const metadata: Metadata = {
   title: 'Dashboard | Admin Backoffice',
@@ -28,18 +30,33 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function StatCardsError() {
+  return (
+    <Paper withBorder p="md" radius="md" bg="red.0">
+      <Text size="sm" c="red">
+        Unable to load stats. Please refresh the page.
+      </Text>
+    </Paper>
+  );
+}
+
 async function StatCards() {
   const cookieStore = await cookies();
   const sid = cookieStore.get('sid');
-  const response = await apiFetch<{ totalUsers: number; activeSessions: number }>(
-    '/api/v1/users/stats',
-    {},
-    sid ? `sid=${sid.value}` : '',
-  );
-  if (!response.data) {
-    throw new Error('Failed to load dashboard stats');
+
+  let stats: UserStatsDTO;
+  try {
+    const response = await apiFetch<UserStatsDTO>(
+      '/api/v1/users/stats',
+      {},
+      sid ? `sid=${sid.value}` : '',
+    );
+    if (!response.data) return <StatCardsError />;
+    stats = response.data;
+  } catch (e) {
+    captureError(e, 'StatCards');
+    return <StatCardsError />;
   }
-  const stats = response.data;
 
   return (
     <Grid>

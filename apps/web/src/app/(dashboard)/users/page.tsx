@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Stack, Title, Skeleton } from '@mantine/core';
 import type { UserDTO, PaginatedMeta } from '@repo/schemas';
-import { apiFetch, paginatedApiFetch } from '@/lib/api';
+import { paginatedApiFetch } from '@/lib/api';
+import { getMe } from '@/lib/auth';
 import { UsersTable } from '@/features/users/components/UsersTable';
 
 export const metadata: Metadata = {
@@ -45,23 +45,18 @@ async function UsersContent({
   if (status) params.set('status', status);
   if (search) params.set('search', search);
 
-  const [usersResponse, meResponse] = await Promise.all([
+  const [usersResponse, actor] = await Promise.all([
     paginatedApiFetch<UserDTO>(`/api/v1/users?${params.toString()}`, {}, cookieHeader),
-    apiFetch<UserDTO>('/api/v1/auth/me', {}, cookieHeader),
+    getMe(),
   ]);
 
   const users = usersResponse.data ?? [];
-  const meta = (usersResponse.meta ?? {
+  const meta: PaginatedMeta = usersResponse.meta ?? {
     totalItems: 0,
     totalPages: 0,
     currentPage: 1,
     pageSize: 10,
-  }) as PaginatedMeta;
-
-  if (!meResponse.data) {
-    redirect('/login');
-  }
-  const actor = meResponse.data;
+  };
 
   return (
     <UsersTable
