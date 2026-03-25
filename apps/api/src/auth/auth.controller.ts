@@ -28,8 +28,8 @@ import { ZodValidationPipe } from 'nestjs-zod';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Throttle({ auth: {} })
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @HttpCode(HttpStatus.OK)
   @ApiLoginDocs()
   @ResponseMessage('Login successful.')

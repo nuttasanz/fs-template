@@ -81,7 +81,7 @@ export class UsersController {
   }
 
   @Post()
-  @Throttle({ mutation: {} })
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiCreateUserDocs()
   @ResponseMessage('User created.')
   create(
@@ -92,7 +92,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @Throttle({ mutation: {} })
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiUpdateUserDocs()
   @ResponseMessage('User updated.')
   update(
@@ -104,7 +104,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Throttle({ mutation: {} })
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiDeleteUserDocs()
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: SessionUser): Promise<void> {
