@@ -17,6 +17,7 @@ import type {
   UserStatus,
   FindUsersQueryDTO,
   UserStatsDTO,
+  PaginatedMeta,
 } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { profiles, sessions, users } from '../database/schema';
@@ -25,14 +26,8 @@ import { isPgDatabaseError } from '../common/types/pg-error.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { canManageRole } from '@repo/schemas';
 
-export type FindUsersQuery = FindUsersQueryDTO;
-
-export interface PaginatedUsers {
+export interface PaginatedUsers extends PaginatedMeta {
   data: UserDTO[];
-  totalItems: number;
-  totalPages: number;
-  currentPage: number;
-  pageSize: number;
 }
 
 @Injectable()
@@ -59,7 +54,7 @@ export class UsersService {
     };
   }
 
-  async findAll(query: FindUsersQuery): Promise<PaginatedUsers> {
+  async findAll(query: FindUsersQueryDTO): Promise<PaginatedUsers> {
     const pageSize = Math.min(
       query.pageSize ?? this.config.USERS_PAGE_LIMIT,
       this.config.USERS_PAGE_LIMIT_MAX,
@@ -95,7 +90,7 @@ export class UsersService {
       this.db
         .select({ count: count() })
         .from(users)
-        .leftJoin(profiles, eq(profiles.userId, users.id))
+        .innerJoin(profiles, eq(profiles.userId, users.id))
         .where(where),
       this.db
         .select({
@@ -110,7 +105,7 @@ export class UsersService {
           bio: profiles.bio,
         })
         .from(users)
-        .leftJoin(profiles, eq(profiles.userId, users.id))
+        .innerJoin(profiles, eq(profiles.userId, users.id))
         .where(where)
         .orderBy(desc(users.createdAt), desc(users.id))
         .offset((page - 1) * pageSize)
@@ -143,7 +138,7 @@ export class UsersService {
         bio: profiles.bio,
       })
       .from(users)
-      .leftJoin(profiles, eq(profiles.userId, users.id))
+      .innerJoin(profiles, eq(profiles.userId, users.id))
       .where(and(eq(users.id, id), isNull(users.deletedAt)))
       .limit(1);
 
@@ -253,8 +248,8 @@ export class UsersService {
     status: UserStatus;
     createdAt: Date;
     updatedAt: Date;
-    firstName: string | null;
-    lastName: string | null;
+    firstName: string;
+    lastName: string;
     bio: string | null;
   }): UserDTO {
     return {
@@ -265,8 +260,8 @@ export class UsersService {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       profile: {
-        firstName: row.firstName ?? '',
-        lastName: row.lastName ?? '',
+        firstName: row.firstName,
+        lastName: row.lastName,
         bio: row.bio ?? null,
       },
     };

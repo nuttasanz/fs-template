@@ -80,6 +80,14 @@ describe('UsersService — RBAC enforcement', () => {
   it('USER cannot manage another USER', () => {
     expect(() => enforce('USER', 'USER')).toThrow(ForbiddenException);
   });
+
+  it('USER cannot manage ADMIN', () => {
+    expect(() => enforce('USER', 'ADMIN')).toThrow(ForbiddenException);
+  });
+
+  it('USER cannot manage SUPER_ADMIN', () => {
+    expect(() => enforce('USER', 'SUPER_ADMIN')).toThrow(ForbiddenException);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -89,8 +97,8 @@ describe('UsersService — RBAC enforcement', () => {
 describe('UsersService — findAll', () => {
   function makeFindAllDb(totalCount: number, rows: ReturnType<typeof makeUserRow>[]) {
     // The service calls db.select() twice in Promise.all:
-    // 1st call → COUNT query chain: select().from().leftJoin().where()
-    // 2nd call → data query chain: select().from().leftJoin().where().orderBy().offset().limit()
+    // 1st call → COUNT query chain: select().from().innerJoin().where()
+    // 2nd call → data query chain: select().from().innerJoin().where().orderBy().offset().limit()
     let callIndex = 0;
     return {
       select: jest.fn().mockImplementation(() => {
@@ -99,7 +107,7 @@ describe('UsersService — findAll', () => {
           // COUNT query (with LEFT JOIN for search support)
           return {
             from: jest.fn().mockReturnValue({
-              leftJoin: jest.fn().mockReturnValue({
+              innerJoin: jest.fn().mockReturnValue({
                 where: jest.fn().mockResolvedValue([{ count: totalCount }]),
               }),
             }),
@@ -108,7 +116,7 @@ describe('UsersService — findAll', () => {
         // Data query
         return {
           from: jest.fn().mockReturnValue({
-            leftJoin: jest.fn().mockReturnValue({
+            innerJoin: jest.fn().mockReturnValue({
               where: jest.fn().mockReturnValue({
                 orderBy: jest.fn().mockReturnValue({
                   offset: jest.fn().mockReturnValue({
@@ -164,12 +172,24 @@ describe('UsersService — findAll', () => {
     expect(result.pageSize).toBe(100);
   });
 
-  it('defaults page to 1 when not provided or less than 1', async () => {
+  it('defaults page to 1 when not provided', async () => {
     const db = makeFindAllDb(0, []);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new UsersService(db as any, mockConfig as any);
-    const result = await service.findAll({ page: 1, pageSize: 10 });
+    // Cast to simulate runtime call without page (guards the `?? 1` path)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await service.findAll({ pageSize: 10 } as any);
+
+    expect(result.currentPage).toBe(1);
+  });
+
+  it.each([0, -1, -99])('clamps page to 1 when page is %i', async (page) => {
+    const db = makeFindAllDb(0, []);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const service = new UsersService(db as any, mockConfig as any);
+    const result = await service.findAll({ page, pageSize: 10 });
 
     expect(result.currentPage).toBe(1);
   });
@@ -209,7 +229,7 @@ describe('UsersService — findOne', () => {
     const db = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({
-          leftJoin: jest.fn().mockReturnValue({
+          innerJoin: jest.fn().mockReturnValue({
             where: jest.fn().mockReturnValue({
               limit: jest.fn().mockResolvedValue([row]),
             }),
@@ -229,7 +249,7 @@ describe('UsersService — findOne', () => {
     const db = {
       select: jest.fn().mockReturnValue({
         from: jest.fn().mockReturnValue({
-          leftJoin: jest.fn().mockReturnValue({
+          innerJoin: jest.fn().mockReturnValue({
             where: jest.fn().mockReturnValue({
               limit: jest.fn().mockResolvedValue([]),
             }),

@@ -47,7 +47,7 @@ export async function loginAction(data: LoginDTO): Promise<AuthActionResult> {
     cookieStore.set(cookie.name, cookie.value, {
       httpOnly: cookie.httpOnly ?? true,
       path: cookie.path ?? '/',
-      sameSite: (cookie.sameSite?.toLowerCase() as 'lax' | 'strict' | 'none') ?? 'lax',
+      sameSite: (cookie.sameSite?.toLowerCase() as 'lax' | 'strict' | 'none') ?? 'strict',
       expires: cookie.expires,
       secure: cookie.secure ?? process.env.NODE_ENV === 'production',
     });
