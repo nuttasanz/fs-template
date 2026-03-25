@@ -1,56 +1,49 @@
-# AI Agent Instruction: Production-Ready Admin Backoffice (Frontend Monorepo)
+# Frontend Definition of Done
 
-## 1. Context & Architecture
+> Binary pass/fail checklist. Every frontend task must satisfy **all** items before merge.
+> For qualitative code review depth, see `frontend.production-ready.md`.
 
-Build a professional-grade Admin Backoffice system using a Monorepo structure.
+## Architecture Constraints
 
-- **Framework:** Next.js (App Router)
-- **UI Library:** Mantine UI (Primary). **Tailwind CSS is RESTRICTED** to macro-layouts only. Do not mix Tailwind classes with Mantine components to prevent style collisions.
-- **Data Fetching Strategy:** Native RSC `fetch` (Read) + Next.js Server Actions (Mutations).
-- **Client Server-State:** TanStack Query (React Query) is RESTRICTED to complex client-side needs ONLY (e.g., polling, infinite scrolling, real-time sync). Do not use it for basic CRUD.
-- **Form Handling:** Mantine Form + mantine-form-zod-resolver
-- **Validation:** Zod (Shared between Front/Back via `@repo/schemas` Monorepo workspace)
-- **State Management:** Zustand (Only for global client state, DO NOT use for server state)
+- **Framework:** Next.js (App Router). Default to Server Components (RSC).
+- **UI Library:** Mantine UI (primary). Tailwind CSS is **restricted** to macro-layouts only — do not mix Tailwind classes with Mantine components.
+- **Data Fetching:** RSC `fetch` for reads + Next.js Server Actions for mutations.
+- **Client Server-State:** TanStack Query is **restricted** to complex client-side needs only (polling, infinite scroll, optimistic updates, real-time sync). Do not use for basic CRUD.
+- **Form Handling:** Mantine Form + `mantine-form-zod-resolver`.
+- **Validation:** Zod — shared with Backend via `@repo/schemas` workspace package.
+- **State Management:** Zustand for global client state only. Do NOT use for server state.
 
-## 2. Standards & Principles (Strict Compliance)
+---
 
-- **ISO/IEC 25010:** Focus on Performance Efficiency, Usability, and Maintainability.
-- **SOLID Principles:** Each service/module must have a single responsibility.
-- **Component Architecture:** Strict separation between Server Components (RSC) and Client Components (`"use client"`).
-- **The Elements of Programming Style:** "Clarity over Cleverness". Keep components small and focused. No excessive prop drilling.
-- **Resilience:** Every page/module must have Error Boundaries and Suspense/Skeleton fallbacks.
-- **Framework Idioms:** Adhere strictly to Next.js App Router best practices. Avoid React SPA legacy patterns.
+## 1. Code Quality & Static Analysis
 
-## 3. Definition of Done (DoD): Production-Ready & System Cohesion
+- [ ] Code passes ESLint (`next/core-web-vitals`) / Prettier with **zero** warnings.
+- [ ] TypeScript `strict` mode enabled. No `any` types, no `@ts-ignore` without documented justification.
+- [ ] Components exceeding 200 lines must be evaluated for extraction. No deep nested ternaries (`a ? b : c ? d : e`).
 
-This document serves as a quality assurance checklist prior to merging or feature delivery. Every frontend task must satisfy the following minimum standard criteria:
+## 2. Systemic Cohesion & Shared Contracts
 
-## 1. Code Quality & Static Analysis (คุณภาพโค้ด)
-
-- [ ] **Linting & Formatting:** Code must pass ESLint (Next.js core-web-vitals) / Prettier with ZERO warnings.
-- [ ] **TypeScript Strictness:** Strict mode enabled. No `any`, no `@ts-ignore` without heavily documented justification.
-- [ ] **Component Complexity:** Components exceeding 200 lines must be evaluated for extraction. Avoid deep nesting of conditional rendering (e.g., nested ternaries `a ? b : c ? d : e`).
-
-## 2. Systemic Cohesion & Shared Contracts (ความสอดคล้องระดับระบบ)
-
-- [ ] **Zero Shadow Types:** Frontend is FORBIDDEN from recreating local DTOs/Interfaces for API responses. All validation and API types MUST be imported from `@repo/schemas`.
+- [ ] **Zero Shadow Types:** Frontend is FORBIDDEN from creating local DTOs/interfaces for API responses. All types must be imported from `@repo/schemas`.
 - [ ] **Single Source of Truth:** Forms must use `zodResolver` with the exact same Zod schema used by the Backend validation pipe.
-- [ ] **UI Consistency:** Use only Mantine UI theme tokens for spacing, colors, and typography. Hardcoded hex colors or arbitrary pixel values in UI components are PROHIBITED.
+- [ ] **Shared Error Contract:** Frontend must parse and handle `ErrorResponseSchema` from `@repo/schemas`: `{ success: false, message: string, code: string, errors?: ErrorField[], timestamp?: string, path?: string }`. Map `errors[]` to form field validation. Display generic errors via Toast notifications.
+- [ ] **UI Consistency:** Use only Mantine theme tokens for spacing, colors, and typography. Hardcoded hex colors or arbitrary pixel values are PROHIBITED.
 
-## 3. Idiomatic React & Next.js (มาตรฐานการเขียน React/Next.js)
+## 3. Idiomatic React & Next.js
 
-- [ ] **RSC First:** Default to Server Components. Use `"use client"` ONLY at the lowest possible leaf node in the component tree (e.g., buttons with `onClick`, forms).
-- [ ] **Data Fetching:** Direct API calls inside `useEffect` are PROHIBITED. Data must be fetched securely in Server Components. Mutations must use Server Actions.
-- [ ] **Memoization:** Do not prematurely optimize. Use `useMemo` and `useCallback` only when profiling shows a proven performance bottleneck or when passing props to heavily memoized child components.
+- [ ] **RSC First:** Default to Server Components. Use `"use client"` only at the lowest possible leaf node (e.g., buttons with `onClick`, forms).
+- [ ] **Data Fetching:** Direct API calls inside `useEffect` are PROHIBITED. Fetch data in Server Components. Mutations must use Server Actions.
+- [ ] **Memoization:** No premature optimization. Use `useMemo` / `useCallback` only when profiling proves a bottleneck or when passing props to heavily memoized children.
 
-## 4. Performance, UX & Security (ประสิทธิภาพและความปลอดภัย)
+## 4. Performance, UX & Security
 
-- [ ] **Loading States:** All async operations must have corresponding UI feedback (Skeleton loaders, Spinners, or disabled button states) to prevent layout shifts (CLS).
-- [ ] **Error Handling & Observability:** Unhandled exceptions must be caught by Error Boundaries. API errors must display user-friendly Toast notifications, AND must be logged to a global tracking system (e.g., Sentry) for debugging. Raw stack traces must never leak to the UI.
-- [ ] **XSS Prevention:** The use of `dangerouslySetInnerHTML` is strictly prohibited unless parsing explicitly sanitized markdown/HTML (using DOMPurify).
-- [ ] **State Security:** Sensitive information (JWT tokens, PII) MUST NOT be stored in `localStorage` or `sessionStorage`. Rely on secure HttpOnly cookies managed via BFF or Next.js API routes.
+- [ ] **Loading States:** All async operations must have UI feedback (Skeleton, Spinner, or disabled button) to prevent CLS.
+- [ ] **Error Handling:** Unhandled exceptions caught by Error Boundaries. API errors display user-friendly Toasts and are logged to a tracking system (e.g., Sentry). No raw stack traces in the UI.
+- [ ] **XSS Prevention:** `dangerouslySetInnerHTML` is prohibited unless rendering explicitly sanitized content (via DOMPurify).
+- [ ] **State Security:** Sensitive data (JWT tokens, PII) must NOT be stored in `localStorage` or `sessionStorage`. Use secure HttpOnly cookies.
+- [ ] **Auth Flow Compliance:** Session cookies forwarded to Backend via Server Components or Server Actions only. Client Components must NEVER access session tokens directly. MFA and session refresh handled server-side (see `backend.dod.md` Architecture Constraints).
 
 ## 5. Documentation & Testing
 
-- [ ] **Unit Testing:** Critical UI logic (e.g., permission-based rendering, complex form validations) must have Jest/React Testing Library coverage.
-- [ ] **Storybook (Optional but Recommended):** Reusable UI components should be documented in Storybook.
+- [ ] **Unit Testing:** Critical UI logic (permission-based rendering, complex form validations) must have Jest / React Testing Library coverage.
+- [ ] **E2E Testing:** Critical user journeys spanning Frontend and Backend (e.g., Login → Dashboard → CRUD) should have at least one Playwright E2E test suite.
+- [ ] **Storybook (Recommended):** Reusable UI components should be documented in Storybook.

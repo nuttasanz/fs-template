@@ -1,58 +1,67 @@
-# Role: Strict Senior Frontend Engineer (Code Reviewer)
+# Frontend Code Review Guide
+
+> **Qualitative** code review — defines _how deeply_ to evaluate code beyond the binary checklist.
+> Verify `frontend.dod.md` compliance first, then apply this guide for deeper analysis.
 
 ## Objective
 
-Act as a high-standard, no-nonsense Senior Frontend Engineer. Your goal is to review the provided React/Next.js code for **Production Readiness**. You must prioritize rendering performance, state management correctness, component reusability, and security over developer feelings. Avoid over-engineering and strictly follow modern React paradigms.
+Review React/Next.js frontend code for production readiness. Prioritize rendering performance, state management correctness, component reusability, and security. Avoid over-engineering. Be direct — if the code is not production-ready, state why.
 
-## Evaluation Criteria
+## Evaluation Pillars
 
-Analyze the code strictly against these five pillars:
+### 1. Clarity & Maintainability
 
-### 1. Clarity & Maintainability (Clarity over Cleverness)
+> Binary rules (200-line limit, no nested ternaries) → see `frontend.dod.md §1`
 
-- **Component Design:** Is the component doing too much? Should complex logic be extracted into Custom Hooks, or should the component be split into a Server Component (Data Fetching/Layout) and a smaller Client Component (Interactivity)? Avoid legacy "Smart/Dumb" container patterns.
-- **Readability:** Are hooks ordered correctly? Are there complex, unreadable nested ternary operators in the TSX?
-- **Prop Drilling:** Are props being passed down too many levels unnecessarily? Suggest **Component Composition** (using `children` props) first, before defaulting to Context or Zustand to avoid over-engineering.
+- **Component Design:** Is the component doing too much? Extract complex logic into Custom Hooks, or split into a Server Component (data/layout) + a smaller Client Component (interactivity). Avoid legacy "Smart/Dumb" container patterns.
+- **Clarity over Cleverness:** Is the intent immediately obvious? Evaluate naming quality and code flow.
+- **Readability:** Hooks ordered correctly (`useState` → `useRef` → `useEffect` → custom hooks)?
+- **Prop Drilling:** Props passed down too many levels? Prefer **Component Composition** (`children` props) before reaching for Context or Zustand.
+- **ISO/IEC 25010:** Evaluate against Usability, Maintainability, and Performance Efficiency quality characteristics.
 
 ### 2. Error Handling & Resilience
 
-- **UX during Failure:** What happens if the API fails? Is there an Error Boundary, a Suspense fallback UI, or a Toast notification?
-- **Form Robustness:** Are edge cases in user input handled? Is the form disabled during submission (loading state)?
+> Binary rules (Error Boundaries, Toast, Shared Error Contract) → see `frontend.dod.md §2, §4`
+
+- **UX during Failure:** Beyond DoD compliance, evaluate the _quality_ of error UX. Are error messages actionable? Does the UI degrade gracefully (partial content) rather than full-page error?
+- **Form Robustness:** Edge cases in user input handled? Form disabled during submission? Field-level errors from `ErrorResponseSchema` properly mapped to form fields?
 
 ### 3. Performance & Efficiency
 
-- **Re-renders:** Are there obvious causes of unnecessary re-renders? (e.g., inline object/function creation in props without memoization _only where it objectively matters_).
-- **Next.js Optimization:** Is the code misusing Client Components (`"use client"`) at the layout level, forcing the whole app to render client-side? Are images optimized using `next/image`?
-- **Bundle Size:** Are heavy or legacy libraries being used when native browser APIs or lighter alternatives exist? (e.g., using massive barrel file imports or legacy libs like `moment` instead of modern tools/tree-shaking).
+- **Re-renders:** Obvious causes of unnecessary re-renders? (Inline object/function creation in props — flag only where it objectively matters.)
+- **Next.js Optimization:** Misuse of `"use client"` at layout level forcing full client-side rendering? Images using `next/image`? Heavy Client Components lazy-loaded with `next/dynamic`?
+- **Bundle Size:** Heavy or legacy libraries when native APIs or lighter alternatives exist? Massive barrel-file imports? Legacy libs (e.g., `moment`) instead of modern tree-shakable tools?
 
 ### 4. Security (OWASP for Frontend)
 
-- **XSS Vulnerabilities:** Are user inputs rendered safely? Scan for dangerous DOM manipulations, `dangerouslySetInnerHTML`, or unchecked `href` attributes (e.g., `javascript:...`).
-- **Data Exposure:** Is the frontend code accidentally exposing sensitive variables or `.env` secrets (not prefixed with `NEXT_PUBLIC_`) to the browser bundle?
+> Binary rules (XSS via dangerouslySetInnerHTML, state security) → see `frontend.dod.md §4`
 
-### 5. Idiomatic Approach
+- **Deep Scan:** Beyond `dangerouslySetInnerHTML` — unchecked `href` attributes (`javascript:...`), unsafe URL construction, unescaped user content in dynamic attributes.
+- **Data Exposure:** Frontend code accidentally exposing sensitive variables or `.env` secrets (not prefixed with `NEXT_PUBLIC_`) to the browser bundle?
 
-- **React Rules of Hooks:** Are hooks called conditionally or inside loops?
-- **TanStack Query / State:** Is `useEffect` being abused to sync state, fetch data, or listen to variable changes? (Anti-pattern).
-- **Monorepo Compliance:** Is the code redefining types/interfaces locally instead of importing them from the shared `@repo/schemas` package as the single source of truth?
+### 5. Next.js & React Idioms
+
+> Binary rules (RSC First, no useEffect fetching, Zero Shadow Types) → see `frontend.dod.md §2, §3`
+
+- **Rules of Hooks:** Hooks called conditionally or inside loops?
+- **State Anti-patterns:** `useEffect` abused to sync state or listen to variable changes? This is a common anti-pattern — restructure as derived state or event handlers.
+- **TanStack Query:** Only for complex client needs: polling, infinite scroll, optimistic updates, real-time sync. Basic CRUD fetching must use RSC `fetch`.
+- **Next.js APIs:** Route handlers, middleware, and metadata APIs used correctly? No unnecessary client-side routing logic?
 
 ---
 
 ## Output Format
 
-You must provide your response in the following structure. Do not flatter. If the code is bad, tell me directly and explain why based on industry best practices.
-
 ### 🚨 Critical Analysis
 
-- List specific rendering issues, anti-patterns, UX flaws, or security risks.
+- List specific rendering issues, anti-patterns, UX flaws, or security risks. Reference the violated pillar number (1–5).
 - State directly if the component structure is fundamentally flawed.
 
-### 🛠 Before & After (Refactoring)
+### 🛠 Before & After
 
-- **Original Code:** (The problematic snippet)
-- **Refactored Code:** (Your optimized, production-ready version. Show clear separation of concerns, native RSC usage, or logic extraction).
+- **Original Code:** the problematic snippet with file path.
+- **Refactored Code:** the production-ready version. Show only changed lines. Demonstrate RSC separation, logic extraction, or composition patterns.
 
 ### 🧠 The 'Why'
 
-- Explain the frontend engineering rationale behind your changes.
-- Reference React Core Principles, Next.js App Router guidelines, or Web Vitals (LCP, CLS, INP).
+- Cite a specific principle: React docs, Next.js App Router guidelines, Web Vitals (LCP, CLS, INP), or OWASP.
