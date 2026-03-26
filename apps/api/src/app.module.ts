@@ -1,5 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -12,7 +12,9 @@ import { HealthModule } from './health/health.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { AuditLogListener } from './common/listeners/audit-log.listener';
+import { AuditLogRepository } from './common/repositories/audit-log.repository';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     HealthModule,
   ],
   providers: [
+    // Centralised exception handling — registered via APP_FILTER to support DI.
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
     // Rate limiting — registered via APP_GUARD to enable DI and @Throttle() / @SkipThrottle() decorators.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Wrap all successful responses in { success: true, message, data }.
@@ -46,6 +50,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     { provide: APP_INTERCEPTOR, useClass: AuditLogInterceptor },
     // Handles audit log events asynchronously (persists to DB outside request cycle).
     AuditLogListener,
+    AuditLogRepository,
   ],
 })
 export class AppModule implements NestModule {

@@ -6,17 +6,18 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { randomBytes, createHash } from 'crypto';
-import { and, eq, isNull, lt } from 'drizzle-orm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import type { LoginDTO, SessionDTO, UserDTO } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
-import { sessions, users } from '../database/schema';
+import { users } from '../database/schema';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { SessionUser } from '../common/types/session.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { COOKIE_NAME, daysToMs } from '../common/constants/session.constants';
 import { AUDIT_LOG_EVENT, AuditLogEvent } from '../common/events/audit-log.event';
 import { UsersService } from '../users/users.service';
+import { SessionsRepository } from './sessions.repository';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +26,7 @@ export class AuthService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly eventEmitter: EventEmitter2,
     private readonly usersService: UsersService,
+    private readonly sessionsRepo: SessionsRepository,
   ) {}
 
   async login(dto: LoginDTO, res: Response): Promise<SessionDTO> {
@@ -53,17 +55,7 @@ export class AuthService {
     const sessionTtlMs = daysToMs(this.config.SESSION_TTL_DAYS);
     const expiresAt = new Date(Date.now() + sessionTtlMs);
 
-    // Cleanup expired sessions and create a new one atomically.
-    const [session] = await this.db.transaction(async (tx) => {
-      await tx
-        .delete(sessions)
-        .where(and(eq(sessions.userId, user.id), lt(sessions.expiresAt, new Date())));
-
-      return tx
-        .insert(sessions)
-        .values({ userId: user.id, token: tokenHash, expiresAt })
-        .returning();
-    });
+    const session = await this.sessionsRepo.createSession(user.id, tokenHash, expiresAt);
 
     if (!session)
       throw new InternalServerErrorException('Failed to create session. Please try again.');
@@ -96,7 +88,7 @@ export class AuthService {
 
   async logout(rawToken: string, res: Response, actorId: string): Promise<void> {
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
-    await this.db.delete(sessions).where(eq(sessions.token, tokenHash));
+    await this.sessionsRepo.deleteByToken(tokenHash);
     res.clearCookie(COOKIE_NAME, { path: '/' });
 
     this.eventEmitter.emit(

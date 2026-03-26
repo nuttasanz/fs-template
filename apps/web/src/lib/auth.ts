@@ -2,6 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { unstable_rethrow } from 'next/navigation';
 import type { UserDTO } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
 
@@ -23,6 +24,7 @@ export const getMe = cache(async (): Promise<UserDTO> => {
     }
     return response.data;
   } catch (e) {
+    unstable_rethrow(e);
     if (e instanceof ApiError && e.status === 401) {
       redirect('/login');
     }

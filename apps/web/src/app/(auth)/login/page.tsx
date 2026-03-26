@@ -3,7 +3,7 @@ import { Center, Paper, Title, Text, Stack } from '@mantine/core';
 import { LoginForm } from '@/features/auth/components/LoginForm';
 
 export const metadata: Metadata = {
-  title: 'Sign in | Admin Backoffice',
+  title: 'Sign in',
 };
 
 export default function LoginPage() {

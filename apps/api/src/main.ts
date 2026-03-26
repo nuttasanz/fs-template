@@ -12,7 +12,6 @@ import { Logger } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap(): Promise<void> {
@@ -21,6 +20,11 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger)); // redirect all NestJS logs through pino
   app.set('trust proxy', 1); // trust first hop (LB) — req.ip = real client IP from X-Forwarded-For
+
+  // ── Graceful Shutdown ────────────────────────────────────────────────────
+  // Allows onModuleDestroy / onApplicationShutdown hooks to run on SIGTERM/SIGINT,
+  // ensuring in-flight requests complete and resources (DB pool, etc.) are released.
+  app.enableShutdownHooks();
 
   // ── Security Headers ─────────────────────────────────────────────────────
   app.use(helmet()); // must be first — sets X-Content-Type-Options, CSP, X-Frame-Options, etc.
@@ -54,12 +58,12 @@ async function bootstrap(): Promise<void> {
   // pino-http (from LoggerModule) handles request logging — no manual logger middleware needed.
   app.use(cookieParser());
 
-  // ── Global Prefix & Filters ─────────────────────────────────────────────
+  // ── Global Prefix ───────────────────────────────────────────────────────
   app.setGlobalPrefix('api');
-  app.useGlobalFilters(new HttpExceptionFilter());
 
-  // Global interceptors (TransformInterceptor, AuditLogInterceptor) are
-  // registered via APP_INTERCEPTOR in AppModule to support DI.
+  // Global filter (HttpExceptionFilter), interceptors (TransformInterceptor,
+  // AuditLogInterceptor), and guards (ThrottlerGuard) are registered via
+  // APP_FILTER / APP_INTERCEPTOR / APP_GUARD in AppModule to support DI.
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Admin Backoffice API')
@@ -73,6 +77,18 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
   logger.log(`API running on http://localhost:${port}/api`);
 }
+
+// ── Global process error handlers ────────────────────────────────────────────
+// Safety net for unhandled async rejections and uncaught exceptions that escape
+// the NestJS request lifecycle (e.g. fire-and-forget event emissions).
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
 
 bootstrap().catch((err) => {
   console.error('Failed to start application:', err);

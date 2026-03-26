@@ -6,15 +6,28 @@ import * as schema from './schema';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 
 export const DRIZZLE_CLIENT = Symbol('DRIZZLE_CLIENT');
+export const PG_POOL = Symbol('PG_POOL');
 
 export type DrizzleClient = ReturnType<typeof drizzle<typeof schema>>;
 
+/** Provide the raw pg Pool so it can be shut down gracefully. */
+export const PgPoolProvider = {
+  provide: PG_POOL,
+  inject: [APP_CONFIG],
+  useFactory: (config: AppConfig): Pool => {
+    return new Pool({
+      connectionString: config.DATABASE_URL,
+      max: config.DATABASE_POOL_MAX,
+      idleTimeoutMillis: config.DATABASE_POOL_IDLE_TIMEOUT,
+    });
+  },
+};
+
 export const DrizzleProvider = {
   provide: DRIZZLE_CLIENT,
-  inject: [APP_CONFIG],
-  useFactory: async (config: AppConfig): Promise<DrizzleClient> => {
+  inject: [PG_POOL],
+  useFactory: async (pool: Pool): Promise<DrizzleClient> => {
     const logger = new Logger('DatabaseProvider');
-    const pool = new Pool({ connectionString: config.DATABASE_URL });
     const db = drizzle(pool, { schema });
 
     try {
@@ -28,3 +41,4 @@ export const DrizzleProvider = {
     return db;
   },
 };
+

@@ -1,20 +1,16 @@
 import {
   CanActivate,
   ExecutionContext,
-  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { createHash } from 'crypto';
-import { and, eq, gt, isNull } from 'drizzle-orm';
-import { DRIZZLE_CLIENT, type DrizzleClient } from '../../database/database.provider';
-import { sessions, users } from '../../database/schema';
 import { COOKIE_NAME } from '../constants/session.constants';
+import { SessionsRepository } from '../../auth/sessions.repository';
 
 @Injectable()
 export class SessionGuard implements CanActivate {
-  constructor(@Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient) {}
+  constructor(private readonly sessionsRepo: SessionsRepository) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const request = ctx.switchToHttp().getRequest<Request>();
@@ -24,25 +20,7 @@ export class SessionGuard implements CanActivate {
       throw new UnauthorizedException('No session token provided.');
     }
 
-    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
-
-    const [row] = await this.db
-      .select({
-        userId: sessions.userId,
-        email: users.email,
-        role: users.role,
-      })
-      .from(sessions)
-      .innerJoin(users, eq(users.id, sessions.userId))
-      .where(
-        and(
-          eq(sessions.token, tokenHash),
-          gt(sessions.expiresAt, new Date()),
-          eq(users.status, 'ACTIVE'),
-          isNull(users.deletedAt),
-        ),
-      )
-      .limit(1);
+    const row = await this.sessionsRepo.findValidSession(rawToken);
 
     if (!row) {
       throw new UnauthorizedException('Session is invalid or has expired.');
@@ -52,3 +30,4 @@ export class SessionGuard implements CanActivate {
     return true;
   }
 }
+

@@ -8,7 +8,7 @@ import { getMe } from '@/lib/auth';
 import { UsersTable } from '@/features/users/components/UsersTable';
 
 export const metadata: Metadata = {
-  title: 'User Management | Admin Backoffice',
+  title: 'User Management',
 };
 
 interface UsersPageProps {

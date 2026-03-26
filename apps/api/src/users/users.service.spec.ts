@@ -1,5 +1,6 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { UsersRepository, type UserRow } from './users.repository';
 import type { SessionUser } from '../common/types/session.types';
 import type { UserDTO } from '@repo/schemas';
 
@@ -16,7 +17,7 @@ const SUPER_ADMIN_ACTOR: SessionUser = {
 };
 const ADMIN_ACTOR: SessionUser = { id: 'actor', email: 'admin@test.com', role: 'ADMIN' };
 
-function makeUserRow(overrides: Record<string, unknown> = {}) {
+function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
   return {
     id: 'u1',
     email: 'user@test.com',
@@ -44,6 +45,18 @@ function makeUserDTO(overrides: Partial<UserDTO> = {}): UserDTO {
   };
 }
 
+function makeMockRepo(): jest.Mocked<UsersRepository> {
+  return {
+    countUsers: jest.fn(),
+    countActiveSessions: jest.fn(),
+    findById: jest.fn(),
+    findPaginated: jest.fn(),
+    createWithProfile: jest.fn(),
+    updateWithProfile: jest.fn(),
+    softDelete: jest.fn(),
+  } as unknown as jest.Mocked<UsersRepository>;
+}
+
 // ---------------------------------------------------------------------------
 // RBAC enforcement (private method — direct unit tests)
 // ---------------------------------------------------------------------------
@@ -51,7 +64,7 @@ function makeUserDTO(overrides: Partial<UserDTO> = {}): UserDTO {
 describe('UsersService — RBAC enforcement', () => {
   // Instantiate with a minimal mock; enforceRbac has no DB dependency.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new UsersService({} as any, mockConfig as any);
+  const service = new UsersService(makeMockRepo(), mockConfig as any);
 
   const enforce = (actorRole: string, targetRole: string) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,48 +108,12 @@ describe('UsersService — RBAC enforcement', () => {
 // ---------------------------------------------------------------------------
 
 describe('UsersService — findAll', () => {
-  function makeFindAllDb(totalCount: number, rows: ReturnType<typeof makeUserRow>[]) {
-    // The service calls db.select() twice in Promise.all:
-    // 1st call → COUNT query chain: select().from().innerJoin().where()
-    // 2nd call → data query chain: select().from().innerJoin().where().orderBy().offset().limit()
-    let callIndex = 0;
-    return {
-      select: jest.fn().mockImplementation(() => {
-        const idx = callIndex++;
-        if (idx === 0) {
-          // COUNT query (with LEFT JOIN for search support)
-          return {
-            from: jest.fn().mockReturnValue({
-              innerJoin: jest.fn().mockReturnValue({
-                where: jest.fn().mockResolvedValue([{ count: totalCount }]),
-              }),
-            }),
-          };
-        }
-        // Data query
-        return {
-          from: jest.fn().mockReturnValue({
-            innerJoin: jest.fn().mockReturnValue({
-              where: jest.fn().mockReturnValue({
-                orderBy: jest.fn().mockReturnValue({
-                  offset: jest.fn().mockReturnValue({
-                    limit: jest.fn().mockResolvedValue(rows),
-                  }),
-                }),
-              }),
-            }),
-          }),
-        };
-      }),
-    };
-  }
-
   it('returns offset-paginated results with correct meta shape', async () => {
-    const userRow = makeUserRow();
-    const db = makeFindAllDb(1, [userRow]);
+    const repo = makeMockRepo();
+    repo.findPaginated.mockResolvedValue({ rows: [makeUserRow()], totalItems: 1 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.findAll({ page: 1, pageSize: 20 });
 
     expect(result.data).toHaveLength(1);
@@ -149,10 +126,11 @@ describe('UsersService — findAll', () => {
 
   it('returns correct totalPages for multiple pages', async () => {
     const rows = Array.from({ length: 10 }, (_, i) => makeUserRow({ id: `u${i + 1}` }));
-    const db = makeFindAllDb(25, rows);
+    const repo = makeMockRepo();
+    repo.findPaginated.mockResolvedValue({ rows, totalItems: 25 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.findAll({ page: 1, pageSize: 10 });
 
     expect(result.data).toHaveLength(10);
@@ -163,21 +141,22 @@ describe('UsersService — findAll', () => {
   });
 
   it('clamps pageSize to USERS_PAGE_LIMIT_MAX', async () => {
-    const db = makeFindAllDb(0, []);
+    const repo = makeMockRepo();
+    repo.findPaginated.mockResolvedValue({ rows: [], totalItems: 0 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.findAll({ page: 1, pageSize: 999 });
 
     expect(result.pageSize).toBe(100);
   });
 
   it('defaults page to 1 when not provided', async () => {
-    const db = makeFindAllDb(0, []);
+    const repo = makeMockRepo();
+    repo.findPaginated.mockResolvedValue({ rows: [], totalItems: 0 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
-    // Cast to simulate runtime call without page (guards the `?? 1` path)
+    const service = new UsersService(repo, mockConfig as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await service.findAll({ pageSize: 10 } as any);
 
@@ -185,21 +164,22 @@ describe('UsersService — findAll', () => {
   });
 
   it.each([0, -1, -99])('clamps page to 1 when page is %i', async (page) => {
-    const db = makeFindAllDb(0, []);
+    const repo = makeMockRepo();
+    repo.findPaginated.mockResolvedValue({ rows: [], totalItems: 0 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.findAll({ page, pageSize: 10 });
 
     expect(result.currentPage).toBe(1);
   });
 
   it('returns results when search term matches', async () => {
-    const userRow = makeUserRow({ firstName: 'John', lastName: 'Doe' });
-    const db = makeFindAllDb(1, [userRow]);
+    const repo = makeMockRepo();
+    repo.findPaginated.mockResolvedValue({ rows: [makeUserRow()], totalItems: 1 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.findAll({ page: 1, pageSize: 10, search: 'John' });
 
     expect(result.data).toHaveLength(1);
@@ -207,15 +187,15 @@ describe('UsersService — findAll', () => {
   });
 
   it('ignores empty or whitespace-only search', async () => {
-    const db = makeFindAllDb(0, []);
+    const repo = makeMockRepo();
+    repo.findPaginated.mockResolvedValue({ rows: [], totalItems: 0 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.findAll({ page: 1, pageSize: 10, search: '' });
 
     expect(result.data).toHaveLength(0);
-    // Verify db.select was called (query executed without search condition)
-    expect(db.select).toHaveBeenCalled();
+    expect(repo.findPaginated).toHaveBeenCalled();
   });
 });
 
@@ -225,41 +205,22 @@ describe('UsersService — findAll', () => {
 
 describe('UsersService — findOne', () => {
   it('returns a UserDTO when the user exists', async () => {
-    const row = makeUserRow();
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          innerJoin: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([row]),
-            }),
-          }),
-        }),
-      }),
-    };
+    const repo = makeMockRepo();
+    repo.findById.mockResolvedValue(makeUserRow());
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.findOne('u1');
 
     expect(result).toMatchObject({ id: 'u1', profile: { firstName: 'Alice' } });
   });
 
   it('throws NotFoundException when the user does not exist', async () => {
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          innerJoin: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      }),
-    };
+    const repo = makeMockRepo();
+    repo.findById.mockResolvedValue(null);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
   });
 });
@@ -269,39 +230,12 @@ describe('UsersService — findOne', () => {
 // ---------------------------------------------------------------------------
 
 describe('UsersService — create', () => {
-  it('creates a user and profile inside a transaction and returns UserDTO', async () => {
-    const insertedUser = {
-      id: 'u1',
-      email: 'new@test.com',
-      role: 'USER' as const,
-      status: 'ACTIVE' as const,
-      createdAt: new Date('2024-01-01'),
-      updatedAt: new Date('2024-01-01'),
-    };
-    const insertedProfile = { userId: 'u1', firstName: 'Bob', lastName: 'Jones', bio: null };
-
-    const txInsert = jest
-      .fn()
-      .mockReturnValueOnce({
-        values: jest
-          .fn()
-          .mockReturnValue({ returning: jest.fn().mockResolvedValue([insertedUser]) }),
-      })
-      .mockReturnValueOnce({
-        values: jest
-          .fn()
-          .mockReturnValue({ returning: jest.fn().mockResolvedValue([insertedProfile]) }),
-      });
-
-    const db = {
-      transaction: jest
-        .fn()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ insert: txInsert })),
-    };
+  it('creates a user and profile via repository and returns UserDTO', async () => {
+    const repo = makeMockRepo();
+    repo.createWithProfile.mockResolvedValue(makeUserRow({ email: 'new@test.com' }));
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const dto = {
       email: 'new@test.com',
       password: 'pw',
@@ -312,29 +246,18 @@ describe('UsersService — create', () => {
     const result = await service.create(dto, SUPER_ADMIN_ACTOR);
 
     expect(result).toMatchObject({ id: 'u1', email: 'new@test.com' });
-    expect(db.transaction).toHaveBeenCalled();
+    expect(repo.createWithProfile).toHaveBeenCalled();
   });
 
   it('throws ConflictException when the email already exists (pg 23505)', async () => {
     const pgError = Object.assign(new Error('duplicate key value violates unique constraint'), {
       code: '23505',
     });
-
-    const txInsert = jest.fn().mockReturnValue({
-      values: jest.fn().mockReturnValue({
-        returning: jest.fn().mockRejectedValue(pgError),
-      }),
-    });
-
-    const db = {
-      transaction: jest
-        .fn()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ insert: txInsert })),
-    };
+    const repo = makeMockRepo();
+    repo.createWithProfile.mockRejectedValue(pgError);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const dto = {
       email: 'dup@test.com',
       password: 'pw',
@@ -346,8 +269,10 @@ describe('UsersService — create', () => {
   });
 
   it('throws ForbiddenException when the actor lacks sufficient role to assign the target role', async () => {
+    const repo = makeMockRepo();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService({} as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const dto = {
       email: 'x@test.com',
       password: 'pw',
@@ -365,26 +290,18 @@ describe('UsersService — create', () => {
 // ---------------------------------------------------------------------------
 
 describe('UsersService — update', () => {
-  it('runs the update inside a transaction and returns the refreshed UserDTO', async () => {
+  it('runs the update via repository and returns the refreshed UserDTO', async () => {
     const targetUser = makeUserDTO();
-    const txWhere = jest.fn().mockResolvedValue(undefined);
-    const txSet = jest.fn().mockReturnValue({ where: txWhere });
-    const txUpdate = jest.fn().mockReturnValue({ set: txSet });
-
-    const db = {
-      transaction: jest
-        .fn()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ update: txUpdate })),
-    };
+    const repo = makeMockRepo();
+    repo.updateWithProfile.mockResolvedValue(true);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
 
     const result = await service.update('u1', { firstName: 'Bob' }, SUPER_ADMIN_ACTOR);
 
-    expect(db.transaction).toHaveBeenCalled();
+    expect(repo.updateWithProfile).toHaveBeenCalled();
     expect(result).toMatchObject({ id: 'u1' });
   });
 });
@@ -394,46 +311,34 @@ describe('UsersService — update', () => {
 // ---------------------------------------------------------------------------
 
 describe('UsersService — remove', () => {
-  it('soft-deletes the user and revokes sessions inside a transaction', async () => {
+  it('soft-deletes the user via repository', async () => {
     const targetUser = makeUserDTO();
-    const txUpdateWhere = jest.fn().mockResolvedValue(undefined);
-    const txUpdateSet = jest.fn().mockReturnValue({ where: txUpdateWhere });
-    const txDeleteWhere = jest.fn().mockResolvedValue(undefined);
-
-    const db = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      transaction: jest.fn().mockImplementation((cb: (tx: any) => Promise<unknown>) =>
-        cb({
-          update: jest.fn().mockReturnValue({ set: txUpdateSet }),
-          delete: jest.fn().mockReturnValue({ where: txDeleteWhere }),
-        }),
-      ),
-    };
+    const repo = makeMockRepo();
+    repo.softDelete.mockResolvedValue(undefined);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
 
     await service.remove('u1', SUPER_ADMIN_ACTOR);
 
-    // Verify transaction was called (soft delete + session revocation)
-    expect(db.transaction).toHaveBeenCalled();
-    const setArg = txUpdateSet.mock.calls[0][0] as Record<string, unknown>;
-    expect(setArg['deletedAt']).toBeInstanceOf(Date);
-    // Verify sessions were deleted
-    expect(txDeleteWhere).toHaveBeenCalled();
+    expect(repo.softDelete).toHaveBeenCalledWith('u1');
   });
 
   it('throws ForbiddenException when attempting to delete own account', async () => {
+    const repo = makeMockRepo();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService({} as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     await expect(service.remove('actor', SUPER_ADMIN_ACTOR)).rejects.toThrow(ForbiddenException);
   });
 
   it('throws ForbiddenException when the actor lacks permission to remove the target', async () => {
     const targetUser = makeUserDTO({ role: 'ADMIN' });
+    const repo = makeMockRepo();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService({} as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
 
     // ADMIN actor cannot remove another ADMIN
@@ -447,56 +352,24 @@ describe('UsersService — remove', () => {
 
 describe('UsersService — getStats', () => {
   it('returns totalUsers and activeSessions counts', async () => {
-    let selectCall = 0;
-    const db = {
-      select: jest.fn().mockImplementation(() => {
-        const idx = selectCall++;
-        if (idx === 0) {
-          // user count query
-          return {
-            from: jest.fn().mockReturnValue({
-              where: jest.fn().mockResolvedValue([{ count: 42 }]),
-            }),
-          };
-        }
-        // session count query
-        return {
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockResolvedValue([{ count: 7 }]),
-          }),
-        };
-      }),
-    };
+    const repo = makeMockRepo();
+    repo.countUsers.mockResolvedValue(42);
+    repo.countActiveSessions.mockResolvedValue(7);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.getStats();
 
     expect(result).toEqual({ totalUsers: 42, activeSessions: 7 });
   });
 
   it('returns 0 when no records exist', async () => {
-    let selectCall = 0;
-    const db = {
-      select: jest.fn().mockImplementation(() => {
-        const idx = selectCall++;
-        if (idx === 0) {
-          return {
-            from: jest.fn().mockReturnValue({
-              where: jest.fn().mockResolvedValue([{ count: 0 }]),
-            }),
-          };
-        }
-        return {
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockResolvedValue([{ count: 0 }]),
-          }),
-        };
-      }),
-    };
+    const repo = makeMockRepo();
+    repo.countUsers.mockResolvedValue(0);
+    repo.countActiveSessions.mockResolvedValue(0);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     const result = await service.getStats();
 
     expect(result).toEqual({ totalUsers: 0, activeSessions: 0 });
@@ -510,33 +383,29 @@ describe('UsersService — getStats', () => {
 describe('UsersService — update (role change RBAC)', () => {
   it('allows SUPER_ADMIN to change a USER role to ADMIN', async () => {
     const targetUser = makeUserDTO({ role: 'USER' });
-    const txWhere = jest.fn().mockResolvedValue(undefined);
-    const txSet = jest.fn().mockReturnValue({ where: txWhere });
-    const txUpdate = jest.fn().mockReturnValue({ set: txSet });
-
-    const db = {
-      transaction: jest
-        .fn()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb({ update: txUpdate })),
-    };
+    const repo = makeMockRepo();
+    repo.updateWithProfile.mockResolvedValue(true);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService(db as any, mockConfig as any);
+    const service = new UsersService(repo, mockConfig as any);
     jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
 
     const result = await service.update('u1', { role: 'ADMIN' }, SUPER_ADMIN_ACTOR);
 
-    expect(db.transaction).toHaveBeenCalled();
+    expect(repo.updateWithProfile).toHaveBeenCalled();
     expect(result).toMatchObject({ id: 'u1' });
   });
 
   it('throws ForbiddenException when ADMIN tries to change target role to ADMIN', async () => {
-    const targetUser = makeUserDTO({ role: 'USER' });
+    const repo = makeMockRepo();
+    // The validate callback inside updateWithProfile should throw
+    repo.updateWithProfile.mockImplementation(async (_id, _uf, _pf, validate) => {
+      validate('USER' as const); // target is USER, but assigning ADMIN role
+      return true;
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService({} as any, mockConfig as any);
-    jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
+    const service = new UsersService(repo, mockConfig as any);
 
     // ADMIN cannot assign ADMIN role
     await expect(service.update('u1', { role: 'ADMIN' }, ADMIN_ACTOR)).rejects.toThrow(
@@ -545,11 +414,15 @@ describe('UsersService — update (role change RBAC)', () => {
   });
 
   it('throws ForbiddenException when ADMIN tries to update an ADMIN user', async () => {
-    const targetUser = makeUserDTO({ role: 'ADMIN' });
+    const repo = makeMockRepo();
+    // The validate callback inside updateWithProfile should throw
+    repo.updateWithProfile.mockImplementation(async (_id, _uf, _pf, validate) => {
+      validate('ADMIN' as const); // target is ADMIN — ADMIN can't manage ADMIN
+      return true;
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const service = new UsersService({} as any, mockConfig as any);
-    jest.spyOn(service, 'findOne').mockResolvedValue(targetUser);
+    const service = new UsersService(repo, mockConfig as any);
 
     // ADMIN cannot manage another ADMIN (enforceRbac on target role)
     await expect(service.update('u1', { firstName: 'Changed' }, ADMIN_ACTOR)).rejects.toThrow(

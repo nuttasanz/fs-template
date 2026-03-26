@@ -6,25 +6,21 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, count, desc, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm';
-import type { SQL } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 import type {
   CreateUserDTO,
   UpdateUserDTO,
   UserDTO,
   UserRole,
-  UserStatus,
   FindUsersQueryDTO,
   UserStatsDTO,
   PaginatedMeta,
 } from '@repo/schemas';
-import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
-import { profiles, sessions, users } from '../database/schema';
+import { canManageRole } from '@repo/schemas';
+import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import type { SessionUser } from '../common/types/session.types';
 import { isPgDatabaseError } from '../common/types/pg-error.types';
-import { APP_CONFIG, type AppConfig } from '../config/config.module';
-import { canManageRole } from '@repo/schemas';
+import { UsersRepository, type UserRow } from './users.repository';
 
 export interface PaginatedUsers extends PaginatedMeta {
   data: UserDTO[];
@@ -33,20 +29,16 @@ export interface PaginatedUsers extends PaginatedMeta {
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient,
+    private readonly usersRepo: UsersRepository,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   async getStats(): Promise<UserStatsDTO> {
-    const [[userCount], [sessionCount]] = await Promise.all([
-      this.db.select({ count: count() }).from(users).where(isNull(users.deletedAt)),
-      this.db.select({ count: count() }).from(sessions).where(gt(sessions.expiresAt, new Date())),
+    const [totalUsers, activeSessions] = await Promise.all([
+      this.usersRepo.countUsers(),
+      this.usersRepo.countActiveSessions(),
     ]);
-
-    return {
-      totalUsers: userCount?.count ?? 0,
-      activeSessions: sessionCount?.count ?? 0,
-    };
+    return { totalUsers, activeSessions };
   }
 
   async findAll(query: FindUsersQueryDTO): Promise<PaginatedUsers> {
@@ -56,58 +48,7 @@ export class UsersService {
     );
     const page = Math.max(query.page ?? 1, 1);
 
-    const conditions: (SQL | undefined)[] = [
-      isNull(users.deletedAt),
-      query.role ? eq(users.role, query.role) : undefined,
-      query.status ? eq(users.status, query.status) : undefined,
-    ];
-
-    // PERF: Leading-wildcard ILIKE ('%term%') cannot use a B-tree index.
-    // Acceptable for <50K rows. For larger datasets consider pg_trgm + GIN:
-    //   CREATE EXTENSION IF NOT EXISTS pg_trgm;
-    //   CREATE INDEX profiles_name_trgm_idx ON profiles
-    //     USING gin ((first_name || ' ' || last_name) gin_trgm_ops);
-    if (query.search) {
-      const escaped = query.search.replace(/[%_\\]/g, '\\$&');
-      const term = `%${escaped}%`;
-      conditions.push(
-        or(
-          ilike(profiles.firstName, term),
-          ilike(profiles.lastName, term),
-          ilike(sql`${profiles.firstName} || ' ' || ${profiles.lastName}`, term),
-        ),
-      );
-    }
-
-    const where = and(...conditions.filter(Boolean));
-
-    const [countResult, rows] = await Promise.all([
-      this.db
-        .select({ count: count() })
-        .from(users)
-        .innerJoin(profiles, eq(profiles.userId, users.id))
-        .where(where),
-      this.db
-        .select({
-          id: users.id,
-          email: users.email,
-          role: users.role,
-          status: users.status,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-          firstName: profiles.firstName,
-          lastName: profiles.lastName,
-          bio: profiles.bio,
-        })
-        .from(users)
-        .innerJoin(profiles, eq(profiles.userId, users.id))
-        .where(where)
-        .orderBy(desc(users.createdAt), desc(users.id))
-        .offset((page - 1) * pageSize)
-        .limit(pageSize),
-    ]);
-
-    const totalItems = countResult[0]?.count ?? 0;
+    const { rows, totalItems } = await this.usersRepo.findPaginated(query, pageSize, page);
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return {
@@ -120,23 +61,7 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<UserDTO> {
-    const [row] = await this.db
-      .select({
-        id: users.id,
-        email: users.email,
-        role: users.role,
-        status: users.status,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-        firstName: profiles.firstName,
-        lastName: profiles.lastName,
-        bio: profiles.bio,
-      })
-      .from(users)
-      .innerJoin(profiles, eq(profiles.userId, users.id))
-      .where(and(eq(users.id, id), isNull(users.deletedAt)))
-      .limit(1);
-
+    const row = await this.usersRepo.findById(id);
     if (!row) throw new NotFoundException('User not found.');
     return this.toUserDTO(row);
   }
@@ -147,71 +72,39 @@ export class UsersService {
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
     try {
-      const row = await this.db.transaction(async (tx) => {
-        const [user] = await tx
-          .insert(users)
-          .values({ email: dto.email, passwordHash, role: dto.role, status: 'ACTIVE' })
-          .returning();
-
-        if (!user)
-          throw new InternalServerErrorException('Failed to create user. Please try again.');
-
-        const [profile] = await tx
-          .insert(profiles)
-          .values({
-            userId: user.id,
-            firstName: dto.firstName,
-            lastName: dto.lastName,
-            bio: dto.bio ?? null,
-          })
-          .returning();
-
-        if (!profile)
-          throw new InternalServerErrorException('Failed to create user. Please try again.');
-
-        return { ...user, ...profile };
-      });
-
+      const row = await this.usersRepo.createWithProfile(
+        { email: dto.email, passwordHash, role: dto.role },
+        { firstName: dto.firstName, lastName: dto.lastName, bio: dto.bio ?? null },
+      );
       return this.toUserDTO(row);
     } catch (e) {
       // pg unique_violation (SQLSTATE 23505) — email already taken.
       if (isPgDatabaseError(e) && e.code === '23505') {
         throw new ConflictException('User with this email already exists.');
       }
+      if (e instanceof Error && e.message.startsWith('Failed to insert')) {
+        throw new InternalServerErrorException('Failed to create user. Please try again.');
+      }
       throw e;
     }
   }
 
   async update(id: string, dto: UpdateUserDTO, actor: SessionUser): Promise<UserDTO> {
-    await this.db.transaction(async (tx) => {
-      // Lock the row for the duration of the transaction to prevent a concurrent
-      // request from changing the target's role between the RBAC check and the write.
-      const [target] = await tx
-        .select({ role: users.role })
-        .from(users)
-        .where(and(eq(users.id, id), isNull(users.deletedAt)))
-        .for('update')
-        .limit(1);
+    const found = await this.usersRepo.updateWithProfile(
+      id,
+      { role: dto.role },
+      {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        bio: dto.bio !== undefined ? (dto.bio ?? null) : undefined,
+      },
+      (targetRole) => {
+        this.enforceRbac(actor.role, targetRole);
+        if (dto.role !== undefined) this.enforceRbac(actor.role, dto.role);
+      },
+    );
 
-      if (!target) throw new NotFoundException('User not found.');
-
-      this.enforceRbac(actor.role, target.role);
-      if (dto.role !== undefined) this.enforceRbac(actor.role, dto.role);
-
-      await tx
-        .update(users)
-        .set({ ...(dto.role !== undefined && { role: dto.role }), updatedAt: new Date() })
-        .where(eq(users.id, id));
-
-      await tx
-        .update(profiles)
-        .set({
-          ...(dto.firstName !== undefined && { firstName: dto.firstName }),
-          ...(dto.lastName !== undefined && { lastName: dto.lastName }),
-          ...(dto.bio !== undefined && { bio: dto.bio ?? null }),
-        })
-        .where(eq(profiles.userId, id));
-    });
+    if (!found) throw new NotFoundException('User not found.');
 
     return this.findOne(id);
   }
@@ -224,15 +117,7 @@ export class UsersService {
     const target = await this.findOne(id);
     this.enforceRbac(actor.role, target.role);
 
-    await this.db.transaction(async (tx) => {
-      await tx
-        .update(users)
-        .set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(eq(users.id, id));
-
-      // Revoke all active sessions — prevents deleted user from retaining access.
-      await tx.delete(sessions).where(eq(sessions.userId, id));
-    });
+    await this.usersRepo.softDelete(id);
   }
 
   /**
@@ -245,17 +130,7 @@ export class UsersService {
     }
   }
 
-  private toUserDTO(row: {
-    id: string;
-    email: string;
-    role: UserRole;
-    status: UserStatus;
-    createdAt: Date;
-    updatedAt: Date;
-    firstName: string;
-    lastName: string;
-    bio: string | null;
-  }): UserDTO {
+  private toUserDTO(row: UserRow): UserDTO {
     return {
       id: row.id,
       email: row.email,

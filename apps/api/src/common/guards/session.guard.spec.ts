@@ -14,17 +14,9 @@ function makeContext(cookies: Record<string, string> = {}): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-function makeDb(row: Record<string, unknown> | null) {
+function makeMockSessionsRepo(row: Record<string, unknown> | null = null) {
   return {
-    select: jest.fn().mockReturnValue({
-      from: jest.fn().mockReturnValue({
-        innerJoin: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue(row ? [row] : []),
-          }),
-        }),
-      }),
-    }),
+    findValidSession: jest.fn().mockResolvedValue(row),
   };
 }
 
@@ -35,14 +27,13 @@ function makeDb(row: Record<string, unknown> | null) {
 describe('SessionGuard', () => {
   it('throws UnauthorizedException when no sid cookie is present', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const guard = new SessionGuard({} as any);
+    const guard = new SessionGuard(makeMockSessionsRepo() as any);
     await expect(guard.canActivate(makeContext())).rejects.toThrow(UnauthorizedException);
   });
 
   it('throws UnauthorizedException when the session is not found (expired or invalid)', async () => {
-    const db = makeDb(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const guard = new SessionGuard(db as any);
+    const guard = new SessionGuard(makeMockSessionsRepo(null) as any);
     await expect(guard.canActivate(makeContext({ sid: 'bad-token' }))).rejects.toThrow(
       UnauthorizedException,
     );
@@ -50,9 +41,8 @@ describe('SessionGuard', () => {
 
   it('populates request.sessionUser and returns true for a valid session', async () => {
     const row = { userId: 'user-1', email: 'admin@example.com', role: 'ADMIN' };
-    const db = makeDb(row);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const guard = new SessionGuard(db as any);
+    const guard = new SessionGuard(makeMockSessionsRepo(row) as any);
 
     const req: Record<string, unknown> = { cookies: { sid: 'valid-token' } };
     const ctx = {

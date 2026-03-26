@@ -42,6 +42,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
 USER nextjs
 EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Next.js standalone server entrypoint (path follows monorepo structure)
 CMD ["node", "apps/web/server.js"]

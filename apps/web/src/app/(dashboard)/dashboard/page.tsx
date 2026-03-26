@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/api';
 import { captureError } from '@/lib/logger';
 
 export const metadata: Metadata = {
-  title: 'Dashboard | Admin Backoffice',
+  title: 'Dashboard',
 };
 
 function StatCardSkeleton() {

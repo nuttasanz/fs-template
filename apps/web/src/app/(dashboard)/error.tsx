@@ -5,7 +5,7 @@ import { Center, Title, Text, Button, Stack } from '@mantine/core';
 import { captureError } from '@/lib/logger';
 
 interface ErrorProps {
-  error: Error;
+  error: Error & { digest?: string };
   reset: () => void;
 }
 

@@ -5,15 +5,12 @@ import { AuditLogEvent } from '../events/audit-log.event';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeDb(shouldThrow = false) {
-  const values = jest.fn().mockImplementation(() => {
-    if (shouldThrow) return Promise.reject(new Error('DB write failed'));
-    return Promise.resolve();
-  });
-
+function makeMockRepo(shouldThrow = false) {
   return {
-    insert: jest.fn().mockReturnValue({ values }),
-    _values: values,
+    create: jest.fn().mockImplementation(() => {
+      if (shouldThrow) return Promise.reject(new Error('DB write failed'));
+      return Promise.resolve();
+    }),
   };
 }
 
@@ -33,16 +30,15 @@ function makeEvent(overrides: Partial<AuditLogEvent> = {}): AuditLogEvent {
 // ---------------------------------------------------------------------------
 
 describe('AuditLogListener — handleAuditLog', () => {
-  it('inserts audit log entry into DB on event', async () => {
-    const db = makeDb();
+  it('inserts audit log entry via repository on event', async () => {
+    const repo = makeMockRepo();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const listener = new AuditLogListener(db as any);
+    const listener = new AuditLogListener(repo as any);
     const event = makeEvent();
 
     await listener.handleAuditLog(event);
 
-    expect(db.insert).toHaveBeenCalled();
-    expect(db._values).toHaveBeenCalledWith({
+    expect(repo.create).toHaveBeenCalledWith({
       actorId: 'actor1',
       action: 'CREATE',
       targetId: 'target1',
@@ -52,13 +48,14 @@ describe('AuditLogListener — handleAuditLog', () => {
     });
   });
 
-  it('catches and logs DB write failure without throwing', async () => {
-    const db = makeDb(true);
+  it('propagates repository errors (repository handles try-catch internally)', async () => {
+    const repo = makeMockRepo(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const listener = new AuditLogListener(db as any);
+    const listener = new AuditLogListener(repo as any);
     const event = makeEvent();
 
-    // Should not throw — failure is swallowed and logged
-    await expect(listener.handleAuditLog(event)).resolves.toBeUndefined();
+    // The repository itself handles try-catch, so if it rejects, the listener propagates it.
+    // In production the repository swallows errors — this test verifies the listener delegates.
+    await expect(listener.handleAuditLog(event)).rejects.toThrow('DB write failed');
   });
 });

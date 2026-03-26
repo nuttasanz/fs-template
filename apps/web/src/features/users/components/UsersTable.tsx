@@ -161,7 +161,7 @@ export function UsersTable({
           </Badge>
         </Table.Td>
         <Table.Td>
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="dimmed" suppressHydrationWarning>
             {new Date(user.createdAt).toLocaleDateString()}
           </Text>
         </Table.Td>

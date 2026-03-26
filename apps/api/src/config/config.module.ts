@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Logger, Module } from '@nestjs/common';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
@@ -13,6 +13,8 @@ const AppConfigSchema = z.object({
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(7),
   USERS_PAGE_LIMIT: z.coerce.number().int().positive().default(20),
   USERS_PAGE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+  DATABASE_POOL_IDLE_TIMEOUT: z.coerce.number().int().nonnegative().default(10000),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
@@ -33,11 +35,12 @@ export const APP_CONFIG = Symbol('APP_CONFIG');
     {
       provide: APP_CONFIG,
       useFactory: (): AppConfig => {
+        const logger = new Logger('ConfigModule');
         const result = AppConfigSchema.safeParse(process.env);
         if (!result.success) {
-          console.error('[Config] Missing or invalid environment variables:');
+          logger.error('Missing or invalid environment variables:');
           result.error.issues.forEach(({ path, message }) =>
-            console.error(`  ${path.join('.')}: ${message}`),
+            logger.error(`  ${path.join('.')}: ${message}`),
           );
           process.exit(1);
         }
