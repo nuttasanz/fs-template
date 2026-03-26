@@ -38,15 +38,10 @@ export class UsersService {
   ) {}
 
   async getStats(): Promise<UserStatsDTO> {
-    const [userCount] = await this.db
-      .select({ count: count() })
-      .from(users)
-      .where(isNull(users.deletedAt));
-
-    const [sessionCount] = await this.db
-      .select({ count: count() })
-      .from(sessions)
-      .where(gt(sessions.expiresAt, new Date()));
+    const [[userCount], [sessionCount]] = await Promise.all([
+      this.db.select({ count: count() }).from(users).where(isNull(users.deletedAt)),
+      this.db.select({ count: count() }).from(sessions).where(gt(sessions.expiresAt, new Date())),
+    ]);
 
     return {
       totalUsers: userCount?.count ?? 0,
@@ -188,12 +183,21 @@ export class UsersService {
   }
 
   async update(id: string, dto: UpdateUserDTO, actor: SessionUser): Promise<UserDTO> {
-    const target = await this.findOne(id);
-    this.enforceRbac(actor.role, target.role);
-
-    if (dto.role !== undefined) this.enforceRbac(actor.role, dto.role);
-
     await this.db.transaction(async (tx) => {
+      // Lock the row for the duration of the transaction to prevent a concurrent
+      // request from changing the target's role between the RBAC check and the write.
+      const [target] = await tx
+        .select({ role: users.role })
+        .from(users)
+        .where(and(eq(users.id, id), isNull(users.deletedAt)))
+        .for('update')
+        .limit(1);
+
+      if (!target) throw new NotFoundException('User not found.');
+
+      this.enforceRbac(actor.role, target.role);
+      if (dto.role !== undefined) this.enforceRbac(actor.role, dto.role);
+
       await tx
         .update(users)
         .set({ ...(dto.role !== undefined && { role: dto.role }), updatedAt: new Date() })

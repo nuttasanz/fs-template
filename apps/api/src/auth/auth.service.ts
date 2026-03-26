@@ -2,7 +2,6 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -12,11 +11,12 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import type { LoginDTO, SessionDTO, UserDTO } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
-import { sessions, users, profiles } from '../database/schema';
+import { sessions, users } from '../database/schema';
 import type { SessionUser } from '../common/types/session.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { COOKIE_NAME, daysToMs } from '../common/constants/session.constants';
 import { AUDIT_LOG_EVENT, AuditLogEvent } from '../common/events/audit-log.event';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
@@ -24,11 +24,17 @@ export class AuthService {
     @Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly eventEmitter: EventEmitter2,
+    private readonly usersService: UsersService,
   ) {}
 
   async login(dto: LoginDTO, res: Response): Promise<SessionDTO> {
     const [user] = await this.db
-      .select()
+      .select({
+        id: users.id,
+        email: users.email,
+        status: users.status,
+        passwordHash: users.passwordHash,
+      })
       .from(users)
       .where(and(eq(users.email, dto.email), isNull(users.deletedAt)))
       .limit(1);
@@ -99,38 +105,7 @@ export class AuthService {
     );
   }
 
-  async getMe(sessionUser: SessionUser): Promise<UserDTO> {
-    const [row] = await this.db
-      .select({
-        id: users.id,
-        email: users.email,
-        role: users.role,
-        status: users.status,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-        firstName: profiles.firstName,
-        lastName: profiles.lastName,
-        bio: profiles.bio,
-      })
-      .from(users)
-      .innerJoin(profiles, eq(profiles.userId, users.id))
-      .where(and(eq(users.id, sessionUser.id), isNull(users.deletedAt)))
-      .limit(1);
-
-    if (!row) throw new NotFoundException('User not found.');
-
-    return {
-      id: row.id,
-      email: row.email,
-      role: row.role,
-      status: row.status,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-      profile: {
-        firstName: row.firstName,
-        lastName: row.lastName,
-        bio: row.bio ?? null,
-      },
-    };
+  getMe(sessionUser: SessionUser): Promise<UserDTO> {
+    return this.usersService.findOne(sessionUser.id);
   }
 }

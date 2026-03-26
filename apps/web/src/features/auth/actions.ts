@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import setCookieParser from 'set-cookie-parser';
-import type { LoginDTO } from '@repo/schemas';
+import type { LoginDTO, ErrorResponse } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
 import { captureError } from '@/lib/logger';
 import { serverEnv } from '@/env.server';
@@ -29,8 +29,14 @@ export async function loginAction(data: LoginDTO): Promise<AuthActionResult> {
           error: `Too many login attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`,
         };
       }
-      const errorBody = await response.json().catch(() => ({ message: 'Login failed.' }));
-      return { error: (errorBody as { message?: string }).message ?? 'Login failed.' };
+      const errorBody: ErrorResponse = await response
+        .json()
+        .catch(() => ({
+          success: false as const,
+          message: 'Login failed.',
+          code: 'INTERNAL_ERROR',
+        }));
+      return { error: errorBody.message ?? 'Login failed.' };
     }
 
     // Node.js 18+ Web API — returns string[] correctly for multiple Set-Cookie headers
@@ -41,15 +47,17 @@ export async function loginAction(data: LoginDTO): Promise<AuthActionResult> {
     return { error: 'Unable to connect. Please try again later.' };
   }
 
-  // Forward ALL cookies from backend to the browser
+  // Forward only the session cookie — security attributes are enforced unconditionally
+  // rather than inherited from the backend to prevent accidental attribute downgrade.
   const cookieStore = await cookies();
-  for (const cookie of parsedCookies) {
-    cookieStore.set(cookie.name, cookie.value, {
-      httpOnly: cookie.httpOnly ?? true,
-      path: cookie.path ?? '/',
-      sameSite: (cookie.sameSite?.toLowerCase() as 'lax' | 'strict' | 'none') ?? 'strict',
-      expires: cookie.expires,
-      secure: cookie.secure ?? process.env.NODE_ENV === 'production',
+  const sidCookie = parsedCookies.find((c) => c.name === 'sid');
+  if (sidCookie) {
+    cookieStore.set('sid', sidCookie.value, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: sidCookie.path ?? '/',
+      expires: sidCookie.expires,
     });
   }
 
