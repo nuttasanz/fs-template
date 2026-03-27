@@ -2,6 +2,7 @@
 
 import { Button, Center, Stack, Text, Title } from '@mantine/core';
 import { useEffect } from 'react';
+import { captureError } from '@/lib/logger';
 
 export default function GlobalError({
   error,
@@ -11,7 +12,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('[GlobalError]', error);
+    captureError(error, 'GlobalError');
   }, [error]);
 
   return (
