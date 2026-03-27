@@ -48,11 +48,12 @@ async function fetchWithRetry(url: string, init: RequestInit, label: string): Pr
   throw new Error(`fetchWithRetry: exhausted retries for ${label}`);
 }
 
-export async function apiFetch<T>(
+async function apiFetchRaw(
+  label: string,
   path: string,
-  options: RequestInit = {},
+  options: RequestInit,
   cookieHeader?: string,
-): Promise<BaseResponse<T>> {
+): Promise<Response> {
   const url = `${serverEnv.INTERNAL_API_URL}${path}`;
 
   const headers: HeadersInit = {
@@ -64,7 +65,7 @@ export async function apiFetch<T>(
   const response = await fetchWithRetry(
     url,
     { ...options, headers, cache: 'no-store' },
-    `apiFetch ${path}`,
+    `${label} ${path}`,
   );
 
   if (!response.ok) {
@@ -74,10 +75,20 @@ export async function apiFetch<T>(
       code: 'INTERNAL_ERROR',
     }));
     if (response.status >= 500) {
-      captureError(errorBody, `apiFetch ${path}`);
+      captureError(errorBody, `${label} ${path}`);
     }
     throw new ApiError(response.status, errorBody);
   }
+
+  return response;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+  cookieHeader?: string,
+): Promise<BaseResponse<T>> {
+  const response = await apiFetchRaw('apiFetch', path, options, cookieHeader);
 
   if (response.status === 204 || response.headers.get('content-length') === '0') {
     return { success: true } as BaseResponse<T>;
@@ -91,31 +102,6 @@ export async function paginatedApiFetch<T>(
   options: RequestInit = {},
   cookieHeader?: string,
 ): Promise<PaginatedBaseResponse<T[]>> {
-  const url = `${serverEnv.INTERNAL_API_URL}${path}`;
-
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    ...(options.headers ?? {}),
-  };
-
-  const response = await fetchWithRetry(
-    url,
-    { ...options, headers, cache: 'no-store' },
-    `paginatedApiFetch ${path}`,
-  );
-
-  if (!response.ok) {
-    const errorBody: ErrorResponse = await response.json().catch(() => ({
-      success: false as const,
-      message: `HTTP ${response.status}`,
-      code: 'INTERNAL_ERROR',
-    }));
-    if (response.status >= 500) {
-      captureError(errorBody, `paginatedApiFetch ${path}`);
-    }
-    throw new ApiError(response.status, errorBody);
-  }
-
+  const response = await apiFetchRaw('paginatedApiFetch', path, options, cookieHeader);
   return response.json() as Promise<PaginatedBaseResponse<T[]>>;
 }

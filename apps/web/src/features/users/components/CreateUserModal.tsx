@@ -46,8 +46,12 @@ export function CreateUserModal({ opened, onClose, actor }: CreateUserModalProps
       firstName: '',
       lastName: '',
       role: 'USER',
-      bio: '',
+      bio: undefined,
     },
+    transformValues: (values) => ({
+      ...values,
+      bio: values.bio?.trim() || undefined,
+    }),
   });
 
   function handleClose() {

@@ -40,6 +40,7 @@ export function EditUserModal({ opened, onClose, user, actor }: EditUserModalPro
   });
 
   function handleClose() {
+    form.reset();
     setFormError(null);
     onClose();
   }
