@@ -8,8 +8,8 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import type { UserRole } from '@repo/schemas';
+import { ROLE_HIERARCHY } from '@repo/schemas';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { ROLE_HIERARCHY } from '../constants/role-hierarchy';
 
 @Injectable()
 export class RbacGuard implements CanActivate {
