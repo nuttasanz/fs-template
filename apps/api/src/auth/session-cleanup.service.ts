@@ -3,10 +3,11 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { sql } from 'drizzle-orm';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 
+const BATCH_SIZE = 1000;
+
 @Injectable()
 export class SessionCleanupService {
   private readonly logger = new Logger(SessionCleanupService.name);
-  private readonly BATCH_SIZE = 1000;
 
   constructor(@Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient) {}
 
@@ -19,7 +20,7 @@ export class SessionCleanupService {
       do {
         const result = await this.db.execute(
           sql`DELETE FROM sessions WHERE id IN (
-            SELECT id FROM sessions WHERE expires_at < NOW() LIMIT ${this.BATCH_SIZE}
+            SELECT id FROM sessions WHERE expires_at < NOW() LIMIT ${BATCH_SIZE}
           )`,
         );
         deleted = result.rowCount ?? 0;

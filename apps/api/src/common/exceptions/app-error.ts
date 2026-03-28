@@ -1,7 +1,5 @@
 import type { ErrorField } from '@repo/schemas';
 
-export type { ErrorField };
-
 /**
  * Application-level error with a fixed HTTP status code.
  * Extends the native Error so it is caught by any standard try/catch,

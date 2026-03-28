@@ -9,37 +9,26 @@ import { randomBytes, createHash } from 'crypto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import type { LoginDTO, SessionDTO, UserDTO } from '@repo/schemas';
-import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
-import { users } from '../database/schema';
-import { and, eq, isNull } from 'drizzle-orm';
 import type { SessionUser } from '../common/types/session.types';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { COOKIE_NAME, daysToMs } from '../common/constants/session.constants';
 import { AUDIT_LOG_EVENT, AuditLogEvent } from '../common/events/audit-log.event';
+import { UsersRepository } from '../users/users.repository';
 import { UsersService } from '../users/users.service';
 import { SessionsRepository } from './sessions.repository';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly eventEmitter: EventEmitter2,
+    private readonly usersRepo: UsersRepository,
     private readonly usersService: UsersService,
     private readonly sessionsRepo: SessionsRepository,
   ) {}
 
   async login(dto: LoginDTO, res: Response): Promise<SessionDTO> {
-    const [user] = await this.db
-      .select({
-        id: users.id,
-        email: users.email,
-        status: users.status,
-        passwordHash: users.passwordHash,
-      })
-      .from(users)
-      .where(and(eq(users.email, dto.email), isNull(users.deletedAt)))
-      .limit(1);
+    const user = await this.usersRepo.findActiveByEmail(dto.email);
 
     if (!user) throw new UnauthorizedException('Invalid credentials.');
 

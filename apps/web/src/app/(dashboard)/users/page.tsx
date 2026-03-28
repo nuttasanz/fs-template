@@ -6,6 +6,7 @@ import type { UserDTO, PaginatedMeta } from '@repo/schemas';
 import { paginatedApiFetch } from '@/lib/api';
 import { getMe } from '@/lib/auth';
 import { UsersTable } from '@/features/users/components/UsersTable';
+import { SESSION_COOKIE_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'User Management',
@@ -35,8 +36,8 @@ async function UsersContent({
   search?: string;
 }) {
   const cookieStore = await cookies();
-  const sid = cookieStore.get('sid');
-  const cookieHeader = sid ? `sid=${sid.value}` : '';
+  const sid = cookieStore.get(SESSION_COOKIE_NAME);
+  const cookieHeader = sid ? `${SESSION_COOKIE_NAME}=${sid.value}` : '';
 
   const params = new URLSearchParams();
   params.set('page', page ?? '1');

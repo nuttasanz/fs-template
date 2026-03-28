@@ -25,7 +25,7 @@ interface UsersTableRowProps {
 }
 
 export function UsersTableRow({ user, actor, isPending, onEdit, onDelete }: UsersTableRowProps) {
-  const modifiable = actor?.role && user?.role ? canManageRole(actor.role, user.role) : false;
+  const modifiable = canManageRole(actor.role, user.role);
 
   return (
     <Table.Tr>

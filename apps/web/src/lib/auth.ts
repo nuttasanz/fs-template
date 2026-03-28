@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { unstable_rethrow } from 'next/navigation';
 import type { UserDTO } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
+import { SESSION_COOKIE_NAME } from '@/lib/constants';
 
 /**
  * Return the current user or redirect to /login.
@@ -14,8 +15,8 @@ import { apiFetch, ApiError } from '@/lib/api';
  */
 export const getMe = cache(async (): Promise<UserDTO> => {
   const cookieStore = await cookies();
-  const sid = cookieStore.get('sid');
-  const cookieHeader = sid ? `sid=${sid.value}` : '';
+  const sid = cookieStore.get(SESSION_COOKIE_NAME);
+  const cookieHeader = sid ? `${SESSION_COOKIE_NAME}=${sid.value}` : '';
 
   try {
     const response = await apiFetch<UserDTO>('/api/v1/auth/me', {}, cookieHeader);

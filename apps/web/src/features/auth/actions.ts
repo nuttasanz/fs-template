@@ -7,6 +7,7 @@ import type { LoginDTO, ErrorResponse } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
 import { captureError } from '@/lib/logger';
 import { serverEnv } from '@/env.server';
+import { SESSION_COOKIE_NAME } from '@/lib/constants';
 
 export type AuthActionResult = { error?: string };
 
@@ -50,9 +51,9 @@ export async function loginAction(data: LoginDTO): Promise<AuthActionResult> {
   // Forward only the session cookie — security attributes are enforced unconditionally
   // rather than inherited from the backend to prevent accidental attribute downgrade.
   const cookieStore = await cookies();
-  const sidCookie = parsedCookies.find((c) => c.name === 'sid');
+  const sidCookie = parsedCookies.find((c) => c.name === SESSION_COOKIE_NAME);
   if (sidCookie) {
-    cookieStore.set('sid', sidCookie.value, {
+    cookieStore.set(SESSION_COOKIE_NAME, sidCookie.value, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
@@ -66,10 +67,14 @@ export async function loginAction(data: LoginDTO): Promise<AuthActionResult> {
 
 export async function logoutAction(): Promise<void> {
   const cookieStore = await cookies();
-  const sid = cookieStore.get('sid');
+  const sid = cookieStore.get(SESSION_COOKIE_NAME);
 
   try {
-    await apiFetch('/api/v1/auth/logout', { method: 'POST' }, sid ? `sid=${sid.value}` : '');
+    await apiFetch(
+      '/api/v1/auth/logout',
+      { method: 'POST' },
+      sid ? `${SESSION_COOKIE_NAME}=${sid.value}` : '',
+    );
   } catch (e) {
     // Swallow ApiError — even if the backend session is already expired,
     // we still clear the local cookie so the user is not stuck.
@@ -79,6 +84,6 @@ export async function logoutAction(): Promise<void> {
     }
   }
 
-  cookieStore.delete('sid');
+  cookieStore.delete(SESSION_COOKIE_NAME);
   redirect('/login');
 }

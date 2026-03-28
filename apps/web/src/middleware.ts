@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { SESSION_COOKIE_NAME } from '@/lib/constants';
 
 // Secure by default: every route requires a session cookie
 // unless explicitly listed here.
@@ -11,7 +12,7 @@ function isPublic(pathname: string): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSid = request.cookies.has('sid');
+  const hasSid = request.cookies.has(SESSION_COOKIE_NAME);
 
   // Unauthenticated user hitting a protected route → redirect to login
   if (!isPublic(pathname) && !hasSid) {

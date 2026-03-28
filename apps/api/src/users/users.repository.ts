@@ -5,6 +5,14 @@ import type { FindUsersQueryDTO, UserRole, UserStatus } from '@repo/schemas';
 import { DRIZZLE_CLIENT, type DrizzleClient } from '../database/database.provider';
 import { profiles, sessions, users } from '../database/schema';
 
+/** Minimal row shape used only by the auth login flow (includes passwordHash). */
+export interface UserAuthRow {
+  id: string;
+  email: string;
+  status: UserStatus;
+  passwordHash: string;
+}
+
 /** Raw row shape returned by user + profile joins. */
 export interface UserRow {
   id: string;
@@ -28,6 +36,21 @@ export class UsersRepository {
   constructor(@Inject(DRIZZLE_CLIENT) private readonly db: DrizzleClient) {}
 
   // ── Reads ────────────────────────────────────────────────────────────────
+
+  async findActiveByEmail(email: string): Promise<UserAuthRow | null> {
+    const [row] = await this.db
+      .select({
+        id: users.id,
+        email: users.email,
+        status: users.status,
+        passwordHash: users.passwordHash,
+      })
+      .from(users)
+      .where(and(eq(users.email, email), isNull(users.deletedAt)))
+      .limit(1);
+
+    return row ?? null;
+  }
 
   async countUsers(): Promise<number> {
     const [row] = await this.db

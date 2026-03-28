@@ -69,8 +69,7 @@ export function CreateUserModal({ opened, onClose, actor }: CreateUserModalProps
           for (const [field, message] of Object.entries(result.fieldErrors)) {
             form.setFieldError(field as keyof CreateUserDTO, message);
           }
-        }
-        if (!result.fieldErrors) {
+        } else {
           setFormError(result.error);
         }
         return;

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { CreateUserDTO, UpdateUserDTO } from '@repo/schemas';
 import { apiFetch, ApiError } from '@/lib/api';
 import { captureError } from '@/lib/logger';
+import { SESSION_COOKIE_NAME } from '@/lib/constants';
 
 const uuidSchema = z.string().uuid();
 
@@ -15,8 +16,8 @@ export type UserActionResult =
 
 async function getCookieHeader(): Promise<string> {
   const cookieStore = await cookies();
-  const sid = cookieStore.get('sid');
-  return sid ? `sid=${sid.value}` : '';
+  const sid = cookieStore.get(SESSION_COOKIE_NAME);
+  return sid ? `${SESSION_COOKIE_NAME}=${sid.value}` : '';
 }
 
 export async function createUserAction(dto: CreateUserDTO): Promise<UserActionResult> {
