@@ -10,6 +10,7 @@
 - **Auth Strategy:** Database-backed session management (revokable) with MFA support.
 - **Auth Flow:** Session ID stored in a secure HttpOnly SameSite cookie. Frontend (Next.js) forwards this cookie on every request via Server Components or Server Actions. Session refresh/rotation and MFA challenge flows are handled server-side — the client never accesses the session token directly.
 - **Soft Deletes:** Required for users and critical business data. Do NOT use for junction tables or ephemeral data.
+- **Data Access:** Repository pattern mandatory. `Controller → Service → Repository` layering. Services own business logic; repositories own all database queries.
 
 ---
 
@@ -25,6 +26,7 @@
 - [ ] **Data Encapsulation:** DrizzleORM schemas/types must NOT leak to the API response. Serialize responses using Zod schemas from `@repo/schemas`.
 - [ ] **Single Source of Truth:** Frontend and Backend must use the exact same Zod schemas from `@repo/schemas` for validation.
 - [ ] **Logic Synchronization:** Business-critical logic (e.g., Role Hierarchy: `SUPER_ADMIN > ADMIN > USER`) must be defined once in `@repo/schemas` and shared globally. No hardcoded duplicates.
+- [ ] **Repository Pattern:** Every module must have a dedicated `*.repository.ts`. Services MUST NOT call DrizzleORM directly. All repository methods must accept an optional `tx?: DrizzleTransaction` parameter for transaction composition. Repositories handle data access only — no business logic, no response formatting.
 
 ## 3. Standardized API Contract
 

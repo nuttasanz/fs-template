@@ -42,7 +42,8 @@ Review NestJS backend code for production readiness. Prioritize system stability
 > Binary rules (Zero Shadow Types, Data Encapsulation, shared schemas) → see `backend.dod.md §2`
 
 - **Framework Patterns:** Modules, DI, Guards, Interceptors, Pipes used correctly? No circular dependencies, no service logic in controllers.
-- **No Over-Engineering:** No unnecessary abstractions. Do not suggest CQRS, Event Sourcing, or massive interfaces for simple CRUD unless structurally required.
+- **No Over-Engineering:** No unnecessary abstractions. Do not suggest CQRS, Event Sourcing, or massive interfaces for simple CRUD unless structurally required. Note: the repository pattern is a project standard (see `backend.dod.md §2`), not over-engineering.
+- **Repository Compliance:** Does the module follow `Controller → Service → Repository` layering? Is the service calling DrizzleORM directly (violation)? Do repository methods accept `tx?` for transaction composition? Are queries using explicit column lists (see Pillar 3)?
 - **Soft Deletes:** Applied correctly per `backend.dod.md` Architecture Constraints? Required for users and critical business data; must NOT be used for junction tables or ephemeral data.
 - **Targeted Auditability:** Only critical business mutations (role changes, financial transactions, security settings) should be audited. Avoid logging trivial changes to prevent database bloat.
 

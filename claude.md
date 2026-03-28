@@ -23,6 +23,19 @@ Follow this sequence strictly:
 | Backend DoD | `/apps/api/backend.dod.md` | Binary checklist before merge |
 | Backend Review | `/apps/api/backend.production-ready.md` | Qualitative code review depth |
 
+## Supplementary Framework Guidelines
+
+The following skill references provide generic framework best practices. They are **supplementary** — project-specific DoD and Review guides take precedence. Each skill has a `PROJECT_OVERRIDES.md` that documents which rules are overridden by this project's architectural decisions.
+
+| Skill | Path | Overrides |
+|-------|------|-----------|
+| NestJS Best Practices | `/.agents/skills/nestjs-best-practices/SKILL.md` | `/.agents/skills/nestjs-best-practices/PROJECT_OVERRIDES.md` |
+| Next.js Best Practices | `/.agents/skills/next-best-practices/SKILL.md` | `/.agents/skills/next-best-practices/PROJECT_OVERRIDES.md` |
+
+**Authority hierarchy:** `DoD > Production-Ready Review > PROJECT_OVERRIDES > Skill Rules`
+
+When a skill rule conflicts with a DoD item, the DoD always wins. When a skill rule is not addressed by any project doc, the skill rule applies as-is.
+
 ## Focus Areas: Frontend & Backend Sync
 
 1. **API Contracts & Typings:** Zod schemas and DTOs from `@repo/schemas` must be used identically on both sides. No missing properties, no type mismatches. Success responses use `BaseResponseSchema`: `{ success: true, message, data?, meta? }`. Error responses use `ErrorResponseSchema`: `{ success: false, message, code, errors?, timestamp?, path? }`.
