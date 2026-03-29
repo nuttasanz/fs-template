@@ -36,6 +36,10 @@ const SESSION_RECORD = {
   expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 };
 
+function makeMockUsersRepo() {
+  return { findActiveByEmail: jest.fn() };
+}
+
 function makeMockUsersService() {
   return { findOne: jest.fn() };
 }
@@ -60,23 +64,19 @@ describe('AuthService — login', () => {
   it('returns a SessionDTO and sets an HttpOnly cookie on valid credentials', async () => {
     mockBcryptCompare.mockResolvedValue(true);
 
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([USER_RECORD]),
-          }),
-        }),
-      }),
-    };
+    const mockUsersRepo = makeMockUsersRepo();
+    mockUsersRepo.findActiveByEmail.mockResolvedValue(USER_RECORD);
 
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.createSession.mockResolvedValue(SESSION_RECORD);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      db as any, mockConfig as any, mockEventEmitter as any,
-      makeMockUsersService() as any, mockSessionsRepo as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      mockUsersRepo as any,
+      makeMockUsersService() as any,
+      mockSessionsRepo as any,
     );
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,23 +93,19 @@ describe('AuthService — login', () => {
   it('stores a SHA-256 hash of the raw token — the raw token must never be persisted', async () => {
     mockBcryptCompare.mockResolvedValue(true);
 
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([USER_RECORD]),
-          }),
-        }),
-      }),
-    };
+    const mockUsersRepo = makeMockUsersRepo();
+    mockUsersRepo.findActiveByEmail.mockResolvedValue(USER_RECORD);
 
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.createSession.mockResolvedValue(SESSION_RECORD);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      db as any, mockConfig as any, mockEventEmitter as any,
-      makeMockUsersService() as any, mockSessionsRepo as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      mockUsersRepo as any,
+      makeMockUsersService() as any,
+      mockSessionsRepo as any,
     );
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -123,20 +119,16 @@ describe('AuthService — login', () => {
   });
 
   it('throws UnauthorizedException when no user matches the email', async () => {
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([]),
-          }),
-        }),
-      }),
-    };
+    const mockUsersRepo = makeMockUsersRepo();
+    mockUsersRepo.findActiveByEmail.mockResolvedValue(null);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      db as any, mockConfig as any, mockEventEmitter as any,
-      makeMockUsersService() as any, makeMockSessionsRepo() as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      mockUsersRepo as any,
+      makeMockUsersService() as any,
+      makeMockSessionsRepo() as any,
     );
     const res = makeRes();
     await expect(
@@ -148,20 +140,16 @@ describe('AuthService — login', () => {
   it('throws UnauthorizedException when the password does not match', async () => {
     mockBcryptCompare.mockResolvedValue(false);
 
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([USER_RECORD]),
-          }),
-        }),
-      }),
-    };
+    const mockUsersRepo = makeMockUsersRepo();
+    mockUsersRepo.findActiveByEmail.mockResolvedValue(USER_RECORD);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      db as any, mockConfig as any, mockEventEmitter as any,
-      makeMockUsersService() as any, makeMockSessionsRepo() as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      mockUsersRepo as any,
+      makeMockUsersService() as any,
+      makeMockSessionsRepo() as any,
     );
     const res = makeRes();
     await expect(
@@ -171,20 +159,16 @@ describe('AuthService — login', () => {
   });
 
   it('throws UnauthorizedException for a soft-deleted user (deletedAt filter applied at DB level)', async () => {
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([]),
-          }),
-        }),
-      }),
-    };
+    const mockUsersRepo = makeMockUsersRepo();
+    mockUsersRepo.findActiveByEmail.mockResolvedValue(null);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      db as any, mockConfig as any, mockEventEmitter as any,
-      makeMockUsersService() as any, makeMockSessionsRepo() as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      mockUsersRepo as any,
+      makeMockUsersService() as any,
+      makeMockSessionsRepo() as any,
     );
     const res = makeRes();
     await expect(
@@ -205,8 +189,11 @@ describe('AuthService — logout', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      {} as any, mockConfig as any, mockEventEmitter as any,
-      makeMockUsersService() as any, mockSessionsRepo as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      makeMockUsersRepo() as any,
+      makeMockUsersService() as any,
+      mockSessionsRepo as any,
     );
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -244,8 +231,11 @@ describe('AuthService — getMe', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      {} as any, mockConfig as any, mockEventEmitter as any,
-      mockUsersService as any, makeMockSessionsRepo() as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      makeMockUsersRepo() as any,
+      mockUsersService as any,
+      makeMockSessionsRepo() as any,
     );
     const result = await service.getMe(SESSION_USER);
 
@@ -263,8 +253,11 @@ describe('AuthService — getMe', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      {} as any, mockConfig as any, mockEventEmitter as any,
-      mockUsersService as any, makeMockSessionsRepo() as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      makeMockUsersRepo() as any,
+      mockUsersService as any,
+      makeMockSessionsRepo() as any,
     );
     await expect(service.getMe(SESSION_USER)).rejects.toThrow(NotFoundException);
   });
@@ -280,20 +273,16 @@ describe('AuthService — login (status checks)', () => {
     async (status) => {
       mockBcryptCompare.mockResolvedValue(true);
 
-      const db = {
-        select: jest.fn().mockReturnValue({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([{ ...USER_RECORD, status }]),
-            }),
-          }),
-        }),
-      };
+      const mockUsersRepo = makeMockUsersRepo();
+      mockUsersRepo.findActiveByEmail.mockResolvedValue({ ...USER_RECORD, status });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const service = new AuthService(
-        db as any, mockConfig as any, mockEventEmitter as any,
-        makeMockUsersService() as any, makeMockSessionsRepo() as any,
+        mockConfig as any,
+        mockEventEmitter as any,
+        mockUsersRepo as any,
+        makeMockUsersService() as any,
+        makeMockSessionsRepo() as any,
       );
       const res = makeRes();
       await expect(
@@ -312,23 +301,19 @@ describe('AuthService — login (audit event)', () => {
   it('emits a LOGIN audit event on successful login', async () => {
     mockBcryptCompare.mockResolvedValue(true);
 
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([USER_RECORD]),
-          }),
-        }),
-      }),
-    };
+    const mockUsersRepo = makeMockUsersRepo();
+    mockUsersRepo.findActiveByEmail.mockResolvedValue(USER_RECORD);
 
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.createSession.mockResolvedValue(SESSION_RECORD);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      db as any, mockConfig as any, mockEventEmitter as any,
-      makeMockUsersService() as any, mockSessionsRepo as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      mockUsersRepo as any,
+      makeMockUsersService() as any,
+      mockSessionsRepo as any,
     );
     const res = makeRes();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -349,23 +334,19 @@ describe('AuthService — login (session creation failure)', () => {
   it('throws InternalServerErrorException when session insert returns empty', async () => {
     mockBcryptCompare.mockResolvedValue(true);
 
-    const db = {
-      select: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([USER_RECORD]),
-          }),
-        }),
-      }),
-    };
+    const mockUsersRepo = makeMockUsersRepo();
+    mockUsersRepo.findActiveByEmail.mockResolvedValue(USER_RECORD);
 
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.createSession.mockResolvedValue(null);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
-      db as any, mockConfig as any, mockEventEmitter as any,
-      makeMockUsersService() as any, mockSessionsRepo as any,
+      mockConfig as any,
+      mockEventEmitter as any,
+      mockUsersRepo as any,
+      makeMockUsersService() as any,
+      mockSessionsRepo as any,
     );
     const res = makeRes();
     await expect(

@@ -157,7 +157,12 @@ export class UsersRepository {
     return this.db.transaction(async (tx) => {
       const [user] = await tx
         .insert(users)
-        .values({ email: data.email, passwordHash: data.passwordHash, role: data.role, status: 'ACTIVE' })
+        .values({
+          email: data.email,
+          passwordHash: data.passwordHash,
+          role: data.role,
+          status: 'ACTIVE',
+        })
         .returning();
 
       if (!user) throw new Error('Failed to insert user row.');
@@ -206,7 +211,10 @@ export class UsersRepository {
 
       await tx
         .update(users)
-        .set({ ...(userFields.role !== undefined && { role: userFields.role }), updatedAt: new Date() })
+        .set({
+          ...(userFields.role !== undefined && { role: userFields.role }),
+          updatedAt: new Date(),
+        })
         .where(eq(users.id, id));
 
       const profileUpdate: Record<string, unknown> = {};

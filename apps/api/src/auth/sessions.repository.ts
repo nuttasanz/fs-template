@@ -61,10 +61,7 @@ export class SessionsRepository {
         .delete(sessions)
         .where(and(eq(sessions.userId, userId), lt(sessions.expiresAt, new Date())));
 
-      return tx
-        .insert(sessions)
-        .values({ userId, token: tokenHash, expiresAt })
-        .returning();
+      return tx.insert(sessions).values({ userId, token: tokenHash, expiresAt }).returning();
     });
 
     return session ?? null;

@@ -30,13 +30,11 @@ export async function loginAction(data: LoginDTO): Promise<AuthActionResult> {
           error: `Too many login attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`,
         };
       }
-      const errorBody: ErrorResponse = await response
-        .json()
-        .catch(() => ({
-          success: false as const,
-          message: 'Login failed.',
-          code: 'INTERNAL_ERROR',
-        }));
+      const errorBody: ErrorResponse = await response.json().catch(() => ({
+        success: false as const,
+        message: 'Login failed.',
+        code: 'INTERNAL_ERROR',
+      }));
       return { error: errorBody.message ?? 'Login failed.' };
     }
 
