@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as bcrypt from 'bcrypt';
 import {
   InternalServerErrorException,
@@ -70,7 +71,6 @@ describe('AuthService — login', () => {
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.createSession.mockResolvedValue(SESSION_RECORD);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -79,7 +79,7 @@ describe('AuthService — login', () => {
       mockSessionsRepo as any,
     );
     const res = makeRes();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const result = await service.login({ email: 'alice@example.com', password: 'pw' }, res as any);
 
     expect(result).toMatchObject({ id: 's1', userId: 'u1' });
@@ -99,7 +99,6 @@ describe('AuthService — login', () => {
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.createSession.mockResolvedValue(SESSION_RECORD);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -108,7 +107,7 @@ describe('AuthService — login', () => {
       mockSessionsRepo as any,
     );
     const res = makeRes();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await service.login({ email: 'alice@example.com', password: 'pw' }, res as any);
 
     const rawToken = res.cookie.mock.calls[0][1] as string;
@@ -122,7 +121,6 @@ describe('AuthService — login', () => {
     const mockUsersRepo = makeMockUsersRepo();
     mockUsersRepo.findActiveByEmail.mockResolvedValue(null);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -132,7 +130,6 @@ describe('AuthService — login', () => {
     );
     const res = makeRes();
     await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       service.login({ email: 'ghost@x.com', password: 'pw' }, res as any),
     ).rejects.toThrow(UnauthorizedException);
   });
@@ -143,7 +140,6 @@ describe('AuthService — login', () => {
     const mockUsersRepo = makeMockUsersRepo();
     mockUsersRepo.findActiveByEmail.mockResolvedValue(USER_RECORD);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -153,7 +149,6 @@ describe('AuthService — login', () => {
     );
     const res = makeRes();
     await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       service.login({ email: 'alice@example.com', password: 'wrong' }, res as any),
     ).rejects.toThrow(UnauthorizedException);
   });
@@ -162,7 +157,6 @@ describe('AuthService — login', () => {
     const mockUsersRepo = makeMockUsersRepo();
     mockUsersRepo.findActiveByEmail.mockResolvedValue(null);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -172,7 +166,6 @@ describe('AuthService — login', () => {
     );
     const res = makeRes();
     await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       service.login({ email: 'alice@example.com', password: 'pw' }, res as any),
     ).rejects.toThrow(UnauthorizedException);
   });
@@ -187,7 +180,6 @@ describe('AuthService — logout', () => {
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.deleteByToken.mockResolvedValue(undefined);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -196,7 +188,7 @@ describe('AuthService — logout', () => {
       mockSessionsRepo as any,
     );
     const res = makeRes();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await service.logout('raw-token-value', res as any, 'u1');
 
     expect(mockSessionsRepo.deleteByToken).toHaveBeenCalled();
@@ -229,7 +221,6 @@ describe('AuthService — getMe', () => {
     const mockUsersService = makeMockUsersService();
     mockUsersService.findOne.mockResolvedValue(userDTO);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -251,7 +242,6 @@ describe('AuthService — getMe', () => {
     const mockUsersService = makeMockUsersService();
     mockUsersService.findOne.mockRejectedValue(new NotFoundException('User not found.'));
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -276,7 +266,6 @@ describe('AuthService — login (status checks)', () => {
       const mockUsersRepo = makeMockUsersRepo();
       mockUsersRepo.findActiveByEmail.mockResolvedValue({ ...USER_RECORD, status });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const service = new AuthService(
         mockConfig as any,
         mockEventEmitter as any,
@@ -286,7 +275,6 @@ describe('AuthService — login (status checks)', () => {
       );
       const res = makeRes();
       await expect(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         service.login({ email: 'alice@example.com', password: 'pw' }, res as any),
       ).rejects.toThrow(UnauthorizedException);
     },
@@ -307,7 +295,6 @@ describe('AuthService — login (audit event)', () => {
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.createSession.mockResolvedValue(SESSION_RECORD);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -316,7 +303,7 @@ describe('AuthService — login (audit event)', () => {
       mockSessionsRepo as any,
     );
     const res = makeRes();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await service.login({ email: 'alice@example.com', password: 'pw' }, res as any);
 
     expect(mockEventEmitter.emit).toHaveBeenCalledWith(
@@ -340,7 +327,6 @@ describe('AuthService — login (session creation failure)', () => {
     const mockSessionsRepo = makeMockSessionsRepo();
     mockSessionsRepo.createSession.mockResolvedValue(null);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new AuthService(
       mockConfig as any,
       mockEventEmitter as any,
@@ -350,7 +336,6 @@ describe('AuthService — login (session creation failure)', () => {
     );
     const res = makeRes();
     await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       service.login({ email: 'alice@example.com', password: 'pw' }, res as any),
     ).rejects.toThrow(InternalServerErrorException);
   });
